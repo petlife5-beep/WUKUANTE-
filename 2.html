@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>復古拍立得 v6.0 (穩定核心版)</title>
+    <title>復古拍立得 v7.0 (防呆保護版)</title>
     <style>
         /* --- 基礎設定 --- */
         body {
             margin: 0;
             padding: 0;
             background-color: #5d432c;
-            /* 質感背景 */
             background-image: 
                 linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
@@ -21,11 +20,10 @@
             font-family: sans-serif;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            /* 確保 body 本身就是定位基準 */
             position: relative; 
         }
 
-        /* --- 提示列 --- */
+        /* --- 提示列 (優化過場動畫) --- */
         .hint {
             position: absolute;
             top: 15px;
@@ -41,6 +39,10 @@
             white-space: nowrap;
             z-index: 2000;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: opacity 0.5s ease; /* 淡入淡出效果 */
+            text-align: center;
+            width: 85%;
+            max-width: 400px;
         }
 
         /* --- 相機容器 --- */
@@ -51,7 +53,7 @@
             transform: translateX(-50%);
             width: 280px; 
             height: 260px;
-            z-index: 100; /* 相機層級固定 */
+            z-index: 100;
             transform-origin: bottom center;
             pointer-events: none; 
         }
@@ -123,9 +125,9 @@
             z-index: 18;
         }
 
-        /* --- 拍立得相紙 (關鍵修正) --- */
+        /* --- 拍立得相紙 --- */
         .polaroid {
-            position: absolute; /* 絕對定位 */
+            position: absolute;
             width: 160px;
             height: 230px;
             background: #fff;
@@ -133,11 +135,8 @@
             box-sizing: border-box;
             box-shadow: 2px 2px 15px rgba(0,0,0,0.3);
             cursor: grab;
-            z-index: 15; /* 預設在相機後面一點，但在背景前面 */
-            touch-action: none; /* 禁止瀏覽器預設滾動 */
-            
-            /* 使用 transition 來做彈出動畫，而不是 animation */
-            /* 這樣 top 值是真實改變的，拖曳時不會錯亂 */
+            z-index: 15;
+            touch-action: none;
             transition: top 1.2s cubic-bezier(0.25, 1, 0.5, 1), filter 5s ease;
         }
 
@@ -170,7 +169,7 @@
 </head>
 <body>
 
-    <div class="hint">點紅鈕拍攝 ｜ 拖曳照片佈置 ｜ 點黑鈕下載</div>
+    <div class="hint" id="hint-text">點紅鈕拍攝 ｜ 拖曳照片佈置</div>
 
     <div class="camera-container">
         <button class="shutter-btn" onclick="takePhoto()"></button>
@@ -191,9 +190,47 @@
         const canvas = document.getElementById('capture-canvas');
         const ctx = canvas.getContext('2d');
         const paperSlot = document.getElementById('paperSlot');
+        const hintText = document.getElementById('hint-text');
         
-        // Z-Index 管理，從 200 開始累加，確保拖曳的照片永遠在最上面
         let currentTopZ = 200;
+        let photoCount = 0; // 計算照片數量
+
+        // --- 1. 循環提示文字系統 ---
+        function startHintCycle() {
+            const messages = [
+                "點紅鈕拍攝 ｜ 拖曳照片佈置 ｜ 點黑鈕下載",
+                "⚠️ 注意：關閉網頁後，未下載的照片會消失"
+            ];
+            let index = 0;
+            
+            setInterval(() => {
+                hintText.style.opacity = 0; // 先淡出
+                setTimeout(() => {
+                    index = (index + 1) % messages.length;
+                    hintText.innerText = messages[index];
+                    // 警告訊息顯示紅色/黃色提醒
+                    if (index === 1) {
+                        hintText.style.color = "#ffcc00"; 
+                        hintText.style.fontWeight = "bold";
+                    } else {
+                        hintText.style.color = "#fcead6";
+                        hintText.style.fontWeight = "normal";
+                    }
+                    hintText.style.opacity = 1; // 再淡入
+                }, 500);
+            }, 4000); // 每 4 秒切換一次
+        }
+        startHintCycle();
+
+        // --- 2. 關閉網頁防呆保護 ---
+        window.addEventListener('beforeunload', (e) => {
+            // 只有當畫面上真的有照片時才攔截
+            if (photoCount > 0) {
+                e.preventDefault();
+                e.returnValue = ''; // Chrome 需要這行
+                return "照片尚未下載，確定要離開嗎？"; // 舊版瀏覽器
+            }
+        });
 
         async function initCamera() {
             try {
@@ -249,6 +286,8 @@
         }
 
         function createPolaroid(imgUrl) {
+            photoCount++; // 增加照片計數
+
             const photoDiv = document.createElement('div');
             photoDiv.classList.add('polaroid', 'developing');
             
@@ -270,27 +309,20 @@
             photoDiv.appendChild(downloadBtn);
             document.body.appendChild(photoDiv);
 
-            // --- 修正後的定位邏輯 ---
             const slotRect = paperSlot.getBoundingClientRect();
             const photoWidth = 160;
             
-            // 1. 設定初始位置 (在出紙口)
             const startLeft = slotRect.left + (slotRect.width/2) - (photoWidth/2);
             const startTop = slotRect.top;
 
-            // 賦予初始 CSS
             photoDiv.style.left = startLeft + 'px';
             photoDiv.style.top = startTop + 'px';
 
-            // 2. 強制重繪，確保初始位置生效
             void photoDiv.offsetWidth;
 
-            // 3. 執行彈出動畫 (直接改變 top 值，不使用 transform)
-            // 目標位置：往上彈 220px
             const targetTop = startTop - 220;
             photoDiv.style.top = targetTop + 'px';
 
-            // 4. 顯影
             setTimeout(() => {
                 photoDiv.classList.remove('developing');
                 photoDiv.classList.add('developed');
@@ -318,48 +350,38 @@
             image.src = sourceUrl;
         }
 
-        // --- 穩定版拖曳邏輯 ---
         function makeDraggable(el) {
             let isDragging = false;
             let startX, startY, initialLeft, initialTop;
 
             const start = (e) => {
-                // 忽略下載按鈕
                 if (e.target.closest('.download-btn')) return;
                 
                 isDragging = true;
-                
-                // 1. 提升層級到最高，防止被相機遮擋
                 currentTopZ++;
                 el.style.zIndex = currentTopZ;
                 
-                // 2. 暫時移除 transition，讓拖曳跟手零延遲
                 el.style.transition = 'none';
 
-                // 3. 獲取當前觸控點
                 const clientX = e.clientX || e.touches[0].clientX;
                 const clientY = e.clientY || e.touches[0].clientY;
                 
                 startX = clientX;
                 startY = clientY;
 
-                // 4. 讀取當前真實位置 (如果正在彈出中，這會抓到當下的位置)
-                // 使用 getComputedStyle 確保數值準確
                 const style = window.getComputedStyle(el);
                 initialLeft = parseInt(style.left);
                 initialTop = parseInt(style.top);
                 
-                // 確保數值有效，防止 NaN 導致消失
                 if (isNaN(initialLeft)) initialLeft = el.getBoundingClientRect().left;
                 if (isNaN(initialTop)) initialTop = el.getBoundingClientRect().top;
 
-                // 5. 微幅旋轉效果
                 el.style.transform = `scale(1.02) rotate(${Math.random() * 4 - 2}deg)`;
             };
 
             const move = (e) => {
                 if (!isDragging) return;
-                e.preventDefault(); // 防止畫面滾動
+                e.preventDefault();
 
                 const clientX = e.clientX || e.touches[0].clientX;
                 const clientY = e.clientY || e.touches[0].clientY;
@@ -367,7 +389,6 @@
                 const dx = clientX - startX;
                 const dy = clientY - startY;
 
-                // 直接設定新的 left/top
                 el.style.left = (initialLeft + dx) + 'px';
                 el.style.top = (initialTop + dy) + 'px';
             };
@@ -375,8 +396,6 @@
             const end = (e) => {
                 if (!isDragging) return;
                 isDragging = false;
-                
-                // 恢復 transition (但只針對濾鏡，位置不需要動畫了)
                 el.style.transition = 'filter 5s ease';
                 el.style.transform = `scale(1) rotate(${Math.random() * 6 - 3}deg)`;
             };
@@ -391,4 +410,3 @@
     </script>
 </body>
 </html>
-
