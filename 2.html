@@ -249,4 +249,329 @@
             width: 200px;  /* 加大 */
             height: 250px; /* 加大 */
             background: #fff;
-            padding: 15px 15px 50px 15px; /* 加
+            padding: 15px 15px 50px 15px; /* 加大留白 */
+            box-sizing: border-box;
+            box-shadow: 3px 3px 15px rgba(0,0,0,0.3);
+            cursor: grab;
+            transition: filter 5s ease, transform 0.2s, opacity 0.3s;
+            bottom: 50px; 
+            left: 70px;
+            z-index: 10;
+            transform-origin: center;
+        }
+
+        .polaroid img {
+            width: 100%;
+            height: 185px; /* 固定圖片高度 */
+            object-fit: cover;
+            background-color: #111;
+            border: 1px solid #ddd;
+            pointer-events: none;
+        }
+
+        /* 下載按鈕樣式 */
+        .download-btn {
+            position: absolute;
+            bottom: 12px;
+            right: 15px;
+            width: 28px;
+            height: 28px;
+            background: #333;
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.2s, background 0.2s;
+            z-index: 20;
+            border: none;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .polaroid:hover .download-btn { opacity: 0.8; }
+        .download-btn:hover {
+            transform: scale(1.1);
+            background: #000;
+            opacity: 1 !important;
+        }
+
+        .polaroid:active {
+            cursor: grabbing;
+            z-index: 1000 !important;
+            transform: scale(1.05);
+            box-shadow: 5px 5px 20px rgba(0,0,0,0.4);
+        }
+
+        /* --- 動畫效果 --- */
+        .developing img { filter: blur(10px) grayscale(0.9) contrast(0.4) brightness(0.3); transition: filter 5s ease; }
+        .developed img { filter: blur(0) grayscale(0) contrast(1) brightness(1); }
+
+        .ejecting { animation: ejectPaper 2s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        @keyframes ejectPaper {
+            from { bottom: 20px; }
+            to { bottom: 280px; /* 彈出高度配合新尺寸 */ }
+        }
+
+        /* 刪除時的動畫 */
+        .deleting {
+            transform: scale(0) rotate(180deg) !important;
+            opacity: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="hint">點擊紅鈕拍攝｜相片顯影後，點擊箭頭儲存｜拖曳至垃圾桶丟棄</div>
+
+    <div class="camera-container">
+        <button class="shutter-btn" onclick="takePhoto()"></button>
+        
+        <div class="camera-body">
+            <div class="camera-stripe"></div>
+            
+            <div class="flash-unit">
+                <div class="flash-bulb"></div>
+            </div>
+
+            <div class="lens-wrapper">
+                <video id="camera-feed" autoplay playsinline muted></video>
+            </div>
+        </div>
+        <div class="paper-slot"></div>
+    </div>
+
+    <div class="trash-can" id="trashCan">
+        <div class="trash-icon">🗑️</div>
+    </div>
+
+    <canvas id="capture-canvas" style="display: none;"></canvas>
+
+    <script>
+        const video = document.getElementById('camera-feed');
+        const canvas = document.getElementById('capture-canvas');
+        const ctx = canvas.getContext('2d');
+        const trashCan = document.getElementById('trashCan');
+        
+        // 1. 啟動攝像頭 (解析度稍微調高以配合大尺寸)
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, 
+                    audio: false 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("無法存取相機:", err);
+                alert("請允許相機權限以使用此應用程式。");
+            }
+        }
+        initCamera();
+
+        // 2. 音效合成 (快門聲)
+        function playShutterSound() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const actx = new AudioContext();
+            const t = actx.currentTime;
+            
+            // 簡化的快門聲
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(150, t);
+            osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.1);
+            gain.gain.setValueAtTime(0.5, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            osc.connect(gain); gain.connect(actx.destination); osc.start(t);
+            
+            const noise = actx.createBufferSource();
+            const buffer = actx.createBuffer(1, actx.sampleRate * 0.1, actx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < actx.sampleRate * 0.1; i++) data[i] = Math.random() * 2 - 1;
+            noise.buffer = buffer;
+            const noiseGain = actx.createGain();
+            noiseGain.gain.setValueAtTime(0.8, t); noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            noise.connect(noiseGain); noiseGain.connect(actx.destination); noise.start(t);
+        }
+
+        // 3. 拍照
+        function takePhoto() {
+            playShutterSound();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            // 繪製並裁切為方形 (更像拍立得)
+            const size = Math.min(canvas.width, canvas.height);
+            const sx = (canvas.width - size) / 2;
+            const sy = (canvas.height - size) / 2;
+
+            ctx.translate(size, 0); ctx.scale(-1, 1); // 鏡像
+            ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+            
+            createPolaroid(canvas.toDataURL('image/png'));
+        }
+
+        // 4. 建立照片 DOM
+        function createPolaroid(imgUrl) {
+            const photoDiv = document.createElement('div');
+            photoDiv.classList.add('polaroid', 'developing');
+            
+            const img = document.createElement('img');
+            img.src = imgUrl;
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.classList.add('download-btn');
+            // 使用更明確的下載箭頭符號
+            downloadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>';
+            downloadBtn.title = '儲存照片';
+            
+            downloadBtn.onclick = (e) => {
+                e.stopPropagation();
+                downloadPolaroid(imgUrl);
+            };
+
+            photoDiv.appendChild(img);
+            photoDiv.appendChild(downloadBtn);
+            document.body.appendChild(photoDiv);
+
+            // 定位與動畫 (配合新尺寸)
+            const cameraRect = document.querySelector('.camera-container').getBoundingClientRect();
+            photoDiv.style.left = `${cameraRect.left + 70}px`;
+            photoDiv.style.bottom = `50px`;
+
+            requestAnimationFrame(() => { photoDiv.classList.add('ejecting'); });
+            setTimeout(() => {
+                photoDiv.classList.remove('developing');
+                photoDiv.classList.add('developed');
+            }, 500);
+
+            makeDraggable(photoDiv);
+        }
+
+        // 5. 合成並下載 (配合新尺寸)
+        function downloadPolaroid(photoSrc) {
+            const dlCanvas = document.createElement('canvas');
+            const dlCtx = dlCanvas.getContext('2d');
+            // 高解析度輸出尺寸
+            const pWidth = 600; 
+            const pHeight = 750;
+            const padding = 45;
+            const bottomPadding = 150;
+
+            dlCanvas.width = pWidth; dlCanvas.height = pHeight;
+
+            // 畫紙張
+            dlCtx.fillStyle = '#f8f8f8'; // 稍微米白
+            dlCtx.fillRect(0, 0, pWidth, pHeight);
+            dlCtx.strokeStyle = '#e0e0e0'; dlCtx.lineWidth = 2;
+            dlCtx.strokeRect(0, 0, pWidth, pHeight);
+
+            // 畫照片
+            const image = new Image();
+            image.onload = () => {
+                const contentSize = pWidth - (padding * 2);
+                // 繪製黑色底框
+                dlCtx.fillStyle = '#111';
+                dlCtx.fillRect(padding, padding, contentSize, contentSize);
+                // 繪製照片
+                dlCtx.drawImage(image, padding + 2, padding + 2, contentSize - 4, contentSize - 4);
+
+                const link = document.createElement('a');
+                link.download = `retro_photo_${Date.now()}.png`;
+                link.href = dlCanvas.toDataURL('image/png');
+                link.click();
+            };
+            image.src = photoSrc;
+        }
+
+        // 6. 拖曳與垃圾桶邏輯
+        function makeDraggable(element) {
+            let isDragging = false;
+            let startX, startY, initialLeft, initialTop;
+
+            element.addEventListener('mousedown', startDrag);
+            element.addEventListener('touchstart', startDrag, {passive: false});
+
+            // 檢查兩個元素是否重疊的輔助函式
+            function isOverlapping(el1, el2) {
+                const rect1 = el1.getBoundingClientRect();
+                const rect2 = el2.getBoundingClientRect();
+                return !(rect1.right < rect2.left || 
+                         rect1.left > rect2.right || 
+                         rect1.bottom < rect2.top || 
+                         rect1.top > rect2.bottom);
+            }
+
+            function startDrag(e) {
+                if(e.target.classList.contains('download-btn')) return;
+                isDragging = true;
+                const rect = element.getBoundingClientRect();
+                element.classList.remove('ejecting');
+                element.style.bottom = 'auto';
+                element.style.top = `${rect.top}px`;
+                element.style.left = `${rect.left}px`;
+                element.style.transform = `rotate(${Math.random() * 8 - 4}deg) scale(1.05)`;
+                element.style.zIndex = 1000;
+
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                startX = clientX; startY = clientY;
+                initialLeft = parseFloat(element.style.left);
+                initialTop = parseFloat(element.style.top);
+
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, {passive: false});
+                document.addEventListener('mouseup', stopDrag);
+                document.addEventListener('touchend', stopDrag);
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                const dx = clientX - startX;
+                const dy = clientY - startY;
+                element.style.left = `${initialLeft + dx}px`;
+                element.style.top = `${initialTop + dy}px`;
+
+                // 檢查是否拖曳到垃圾桶上方
+                if (isOverlapping(element, trashCan)) {
+                    trashCan.classList.add('drag-over');
+                } else {
+                    trashCan.classList.remove('drag-over');
+                }
+            }
+
+            function stopDrag() {
+                isDragging = false;
+                
+                // 檢查是否在垃圾桶上放開
+                if (isOverlapping(element, trashCan)) {
+                    // 執行刪除動作
+                    trashCan.classList.remove('drag-over');
+                    element.classList.add('deleting'); // 播放刪除動畫
+                    // 動畫結束後移除 DOM
+                    setTimeout(() => {
+                        if (element.parentNode) {
+                            element.parentNode.removeChild(element);
+                        }
+                    }, 300);
+                } else {
+                    // 正常放下
+                    element.style.zIndex = 50;
+                    element.style.transform = element.style.transform.replace('scale(1.05)', 'scale(1)');
+                }
+
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('touchmove', drag);
+                document.removeEventListener('mouseup', stopDrag);
+                document.removeEventListener('touchend', stopDrag);
+            }
+        }
+    </script>
+</body>
+</html>
