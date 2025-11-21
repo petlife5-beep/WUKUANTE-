@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Altróve - Wu Kuan Te Solo Exhibition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +13,8 @@
             --bg-color: #0b1e2d;
             --text-gold: #e0d3b8;
             --text-white: #f5f5f5;
+            --mouse-x: 50%;
+            --mouse-y: 50%;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,12 +24,14 @@
             background-color: var(--bg-color);
             color: var(--text-white);
             overflow-x: hidden;
-            overflow-y: hidden; /* 一開始鎖定捲動，配合開場動畫 */
-            perspective: 1000px; /* 為了 3D 效果 */
+            /* 防止開場時手機滑動 */
+            overflow-y: hidden; 
+            perspective: 1000px;
+            -webkit-tap-highlight-color: transparent; /* 移除手機點擊藍框 */
         }
 
         /* ====================
-           開場動畫層 (保留鸚鵡飛行)
+           開場動畫層
         ==================== */
         #intro-layer {
             position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
@@ -37,31 +41,31 @@
             animation: finishIntro 1.5s ease-in-out 4s forwards;
         }
         .bird-shape {
-            position: absolute; left: -10%; width: 40px; height: 40px; background: var(--text-gold);
+            position: absolute; left: -20%; width: 40px; height: 40px; background: var(--text-gold);
             clip-path: polygon(0% 50%, 30% 0%, 100% 40%, 70% 60%, 40% 100%, 20% 70%);
             box-shadow: 0 0 20px var(--text-gold);
             animation: flyAcross 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
         }
         .bird-trail {
-            position: absolute; top: 50%; left: -10%; height: 2px; width: 200px;
+            position: absolute; top: 50%; left: -20%; height: 2px; width: 200px;
             background: linear-gradient(90deg, transparent, rgba(224, 211, 184, 0.8), transparent);
             animation: trailFollow 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
         }
         .intro-text {
             font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 1.5rem;
-            opacity: 0; position: absolute; text-align: center; letter-spacing: 0.2em;
+            opacity: 0; position: absolute; text-align: center; letter-spacing: 0.2em; width: 100%;
         }
-        .text-1 { top: 60%; animation: showText 1s ease-out 0.5s forwards, hideText 0.5s ease-in 1.8s forwards; }
-        .text-2 { top: 60%; animation: showText 1s ease-out 2.2s forwards; }
+        .text-1 { top: 55%; animation: showText 1s ease-out 0.5s forwards, hideText 0.5s ease-in 1.8s forwards; }
+        .text-2 { top: 55%; animation: showText 1s ease-out 2.2s forwards; }
 
-        @keyframes flyAcross { 0% { left: -10%; transform: scale(0.5) rotate(15deg); } 50% { transform: scale(1) rotate(0deg); } 100% { left: 110%; transform: scale(0.8) rotate(-10deg); } }
-        @keyframes trailFollow { 0% { left: -15%; opacity: 0; } 10% { opacity: 1; } 100% { left: 105%; opacity: 0; } }
+        @keyframes flyAcross { 0% { left: -20%; transform: scale(0.5) rotate(15deg); } 50% { transform: scale(1) rotate(0deg); } 100% { left: 120%; transform: scale(0.8) rotate(-10deg); } }
+        @keyframes trailFollow { 0% { left: -25%; opacity: 0; } 10% { opacity: 1; } 100% { left: 115%; opacity: 0; } }
         @keyframes showText { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes hideText { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
         @keyframes finishIntro { to { opacity: 0; visibility: hidden; } }
 
         /* ====================
-           主頁面與互動特效
+           主頁面
         ==================== */
         .background-wrapper {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10;
@@ -69,15 +73,14 @@
         }
         .spotlight-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            /* 增強聚光燈效果，讓周圍更暗，中間更亮 */
             background: radial-gradient(
                 800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
-                rgba(255, 255, 255, 0.15) 0%, 
-                rgba(11, 30, 45, 0.4) 50%,
-                rgba(0, 0, 0, 0.8) 100%
+                rgba(255, 255, 255, 0.12) 0%, 
+                rgba(11, 30, 45, 0.5) 60%,
+                rgba(0, 0, 0, 0.9) 100%
             );
             z-index: -8; pointer-events: none; transition: background 0.1s ease;
-            mix-blend-mode: overlay; /* 讓光線疊加更自然 */
+            mix-blend-mode: overlay;
         }
 
         .container {
@@ -89,66 +92,76 @@
         }
         @keyframes pageFadeIn { to { opacity: 1; } }
 
-        header { text-align: center; margin-bottom: 60px; pointer-events: none; } /* 標題不擋滑鼠 */
-        h1 { font-family: 'Cinzel', serif; font-size: 4rem; letter-spacing: 0.15em; color: var(--text-white); text-shadow: 0 0 30px rgba(255,255,255,0.4); }
+        header { text-align: center; margin-bottom: 60px; pointer-events: none; }
+        h1 { font-family: 'Cinzel', serif; font-size: 4rem; letter-spacing: 0.15em; color: var(--text-white); text-shadow: 0 0 30px rgba(255,255,255,0.4); margin: 0 10px; }
         h2 { font-family: 'Cinzel', serif; font-size: 1.5rem; letter-spacing: 0.3em; color: var(--text-gold); border-bottom: 1px solid rgba(224, 211, 184, 0.3); padding-bottom: 10px; display: inline-block; margin-bottom: 30px;}
         .chinese-title { font-family: 'Noto Serif TC', serif; font-size: 2rem; letter-spacing: 0.5em; margin-top: 10px; display: block; font-weight: 300; }
         
         .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; width: 100%; align-items: center; }
 
-        /* --- 3D 海報互動區 (核心特效) --- */
+        /* --- 互動海報區 --- */
         .poster-wrapper {
             position: relative;
-            perspective: 1000px; /* 定義 3D 空間 */
-            cursor: pointer; /* 提示可點擊 */
+            perspective: 1000px;
+            cursor: pointer;
+            /* 在手機上保留一點邊距 */
+            margin: 0 10px;
         }
 
         .poster-display {
             position: relative;
             border-radius: 4px;
             transform-style: preserve-3d;
-            transition: transform 0.1s ease-out; /* 滑鼠移動時的平滑過渡 */
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); /* 手機上反應更平滑 */
             box-shadow: 0 20px 50px rgba(0,0,0,0.6);
         }
 
-        .poster-display img {
-            width: 100%; height: auto; display: block;
-            border-radius: 4px;
+        .poster-display img { width: 100%; height: auto; display: block; border-radius: 4px; }
+
+        /* 自動搖曳動畫 (手機專用) */
+        .poster-display.auto-sway {
+            animation: subtleSway 6s ease-in-out infinite;
+        }
+        
+        /* 搖曳時的反光動畫 */
+        .poster-display.auto-sway .poster-shine {
+            animation: subtleShine 6s ease-in-out infinite;
         }
 
-        /* 反光層 (Sheen) */
+        @keyframes subtleSway {
+            0%, 100% { transform: rotateX(0deg) rotateY(0deg); }
+            25% { transform: rotateX(2deg) rotateY(3deg); }
+            50% { transform: rotateX(0deg) rotateY(0deg); }
+            75% { transform: rotateX(-2deg) rotateY(-3deg); }
+        }
+
+        @keyframes subtleShine {
+            0%, 100% { opacity: 0; background-position: 0% 0%; }
+            50% { opacity: 0.6; background: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.3) 0%, transparent 60%); }
+            75% { opacity: 0.6; background: radial-gradient(circle at 20% 80%, rgba(255,255,255,0.3) 0%, transparent 60%); }
+        }
+
         .poster-shine {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(
-                135deg, 
-                rgba(255,255,255,0) 0%, 
-                rgba(255,255,255,0.3) 50%, 
-                rgba(255,255,255,0) 100%
-            );
-            transform: translateX(-100%); /* 初始位置 */
-            transition: transform 0.1s ease-out;
-            pointer-events: none;
-            mix-blend-mode: soft-light;
-            z-index: 2;
+            background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+            transform: translateZ(1px); /* 確保在圖片上層 */
+            pointer-events: none; mix-blend-mode: soft-light; z-index: 2;
         }
 
-        /* 點擊後的漂浮動畫 Class */
         .poster-display.floating {
-            animation: floatAnimation 6s ease-in-out infinite;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.8), 0 0 30px rgba(224, 211, 184, 0.3); /* 增加發光感 */
+            animation: floatAnimation 6s ease-in-out infinite !important; /* 漂浮時覆蓋自動搖曳 */
+            box-shadow: 0 40px 80px rgba(0,0,0,0.8), 0 0 30px rgba(224, 211, 184, 0.3);
         }
 
-        /* 漂浮動畫：上下移動 + 輕微旋轉 */
         @keyframes floatAnimation {
             0%, 100% { transform: translateY(0) rotateX(0) rotateY(0) scale(1.05); }
             50% { transform: translateY(-20px) rotateX(2deg) rotateY(-2deg) scale(1.05); }
         }
 
-        /* 提示文字 */
         .click-hint {
             position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
             color: var(--text-gold); font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em;
-            animation: pulse 2s infinite; pointer-events: none;
+            animation: pulse 2s infinite; pointer-events: none; width: 100%; text-align: center;
         }
         @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
 
@@ -156,29 +169,31 @@
         .info-card {
             background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px);
             padding: 50px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-            transform: translateZ(0); /* 確保文字在最上層 */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3); transform: translateZ(0);
         }
         .info-item { margin-bottom: 30px; border-left: 2px solid var(--text-gold); padding-left: 20px; }
         .info-label { font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 0.9rem; margin-bottom: 8px; display: block; }
         .info-text { font-size: 1.1rem; color: #fff; }
         .info-subtext { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 5px; display: block; }
-
         .map-link { text-decoration: none; color: inherit; display: block; }
         .map-link:hover .info-text { color: var(--text-gold); text-shadow: 0 0 10px rgba(224, 211, 184, 0.6); }
 
         footer { margin-top: auto; padding: 20px; text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.4); width: 100%; }
         
+        /* 手機版特別調整 */
         @media (max-width: 900px) {
-            .content-grid { grid-template-columns: 1fr; gap: 40px; }
-            h1 { font-size: 2.5rem; }
-            .container { padding-top: 80px; justify-content: flex-start; }
+            .content-grid { grid-template-columns: 1fr; gap: 60px; }
+            h1 { font-size: 2.8rem; margin-bottom: 5px;}
+            .chinese-title { font-size: 1.8rem; }
+            .container { padding-top: 60px; justify-content: flex-start; padding-bottom: 40px; }
+            .poster-wrapper { max-width: 90%; margin: 0 auto; }
+            .info-card { padding: 30px; width: 100%; }
+            .click-hint { font-size: 0.7rem; }
         }
     </style>
 </head>
 <body>
 
-    <!-- 開場動畫 -->
     <div id="intro-layer">
         <div style="position:relative; width:100%; height:200px;">
             <div class="bird-trail"></div>
@@ -188,9 +203,8 @@
         <div class="intro-text text-2">To Italy</div>
     </div>
 
-    <!-- 背景光影特效 -->
     <div class="background-wrapper">
-        <div class="spotlight-overlay"></div> <!-- 這就是跟隨滑鼠的投射燈 -->
+        <div class="spotlight-overlay"></div>
     </div>
 
     <div class="container">
@@ -204,11 +218,12 @@
         <div class="content-grid">
             <!-- 互動海報區 -->
             <div class="poster-wrapper" id="posterWrapper">
-                <div class="poster-display" id="poster">
-                    <div class="poster-shine"></div> <!-- 反光層 -->
+                <!-- 預設加入 auto-sway class 讓它自動動 -->
+                <div class="poster-display auto-sway" id="poster">
+                    <div class="poster-shine"></div>
                     <img src="poster.jpg" alt="Altróve Exhibition Poster">
                 </div>
-                <div class="click-hint">Click to Float ✨</div>
+                <div class="click-hint">Tap to Float ✨</div>
             </div>
 
             <div class="info-card">
@@ -235,69 +250,105 @@
     </div>
 
     <script>
-        // 1. 全局聚光燈效果 (Spotlight)
-        document.addEventListener('mousemove', (e) => {
-            const x = e.clientX / window.innerWidth * 100;
-            const y = e.clientY / window.innerHeight * 100;
+        // --- 手機與電腦的通用事件處理 ---
+
+        function updateMousePosition(xClient, yClient) {
+            const x = xClient / window.innerWidth * 100;
+            const y = yClient / window.innerHeight * 100;
             document.documentElement.style.setProperty('--mouse-x', x + '%');
             document.documentElement.style.setProperty('--mouse-y', y + '%');
+        }
+
+        // 電腦：滑鼠移動
+        document.addEventListener('mousemove', (e) => {
+            updateMousePosition(e.clientX, e.clientY);
         });
 
-        // 2. 海報 3D 互動與點擊漂浮效果
+        // 手機：手指觸摸移動 (讓聚光燈跟著手指)
+        document.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            updateMousePosition(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+
+        // --- 海報互動邏輯 ---
         const wrapper = document.getElementById('posterWrapper');
         const poster = document.getElementById('poster');
         const shine = document.querySelector('.poster-shine');
-        let isFloating = false; // 狀態標記
+        let isFloating = false;
 
-        // 滑鼠移動時的 3D 傾斜運算
-        wrapper.addEventListener('mousemove', (e) => {
-            if (isFloating) return; // 如果正在漂浮，就暫停滑鼠互動
+        // 處理傾斜效果的函數
+        function handleTilt(clientX, clientY) {
+            if (isFloating) return;
+
+            // 一旦有互動，移除「自動搖曳」效果，改成「手動控制」
+            poster.classList.remove('auto-sway');
 
             const rect = wrapper.getBoundingClientRect();
-            const x = e.clientX - rect.left; // 滑鼠在海報內的 X 座標
-            const y = e.clientY - rect.top;  // 滑鼠在海報內的 Y 座標
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
             
-            // 計算中心點
             const centerX = rect.width / 2;
             const centerY = rect.height / 2;
+            
+            // 稍微加大手機上的旋轉幅度，因為手指擋住視線
+            const rotateX = (centerY - y) / 15; 
+            const rotateY = (x - centerX) / 15;
 
-            // 計算旋轉角度 (除以 20 是為了讓旋轉不要太劇烈)
-            const rotateX = (centerY - y) / 20; 
-            const rotateY = (x - centerX) / 20;
-
-            // 應用 3D 旋轉
             poster.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
 
-            // 計算反光位置 (跟隨滑鼠相反方向移動)
             const shineX = (x / rect.width) * 100;
             const shineY = (y / rect.height) * 100;
             shine.style.background = `radial-gradient(circle at ${shineX}% ${shineY}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)`;
+        }
+
+        // 電腦：滑鼠 Hover
+        wrapper.addEventListener('mousemove', (e) => {
+            handleTilt(e.clientX, e.clientY);
         });
 
-        // 滑鼠離開時復原
-        wrapper.addEventListener('mouseleave', () => {
+        // 手機：手指在海報上滑動 (Touch Drag)
+        wrapper.addEventListener('touchmove', (e) => {
+            // 阻止預設的捲動行為，讓使用者可以專心玩海報
+            // 注意：這可能會影響頁面捲動，所以只在海報區域內生效
+            // e.preventDefault(); 
+            const touch = e.touches[0];
+            handleTilt(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        // 離開時復原
+        function resetPoster() {
             if (isFloating) return;
-            poster.style.transform = `rotateX(0) rotateY(0) scale(1)`;
+            // 離開後，重新加回自動搖曳，讓它繼續動
+            poster.classList.add('auto-sway');
+            poster.style.transform = ''; // 清除 inline style，讓 CSS animation 接手
             shine.style.background = `transparent`;
-        });
+        }
 
-        // 點擊觸發/取消漂浮
-        wrapper.addEventListener('click', () => {
-            isFloating = !isFloating; // 切換開關
+        wrapper.addEventListener('mouseleave', resetPoster);
+        wrapper.addEventListener('touchend', resetPoster);
+
+        // 點擊漂浮 (Click / Tap)
+        wrapper.addEventListener('click', (e) => {
+            // 防止事件冒泡導致多次觸發
+            e.stopPropagation();
+            
+            isFloating = !isFloating;
             
             if (isFloating) {
-                // 開始漂浮
-                poster.style.transform = 'none'; // 先清除 JS 設的 transform
-                poster.classList.add('floating'); // 加入 CSS 動畫
-                document.querySelector('.click-hint').textContent = "Tap again to land ⚓";
-                // 漂浮時加入金色光暈
+                poster.classList.remove('auto-sway'); // 停止自動搖曳
+                poster.style.transform = 'none';
+                
+                // 強制重繪以觸發 class 切換動畫
+                void poster.offsetWidth; 
+                poster.classList.add('floating');
+                
+                document.querySelector('.click-hint').textContent = "Tap to Land ⚓";
                 shine.style.background = `linear-gradient(135deg, rgba(224, 211, 184, 0.1) 0%, rgba(224, 211, 184, 0.3) 50%, rgba(224, 211, 184, 0.1) 100%)`;
             } else {
-                // 降落 (取消漂浮)
                 poster.classList.remove('floating');
-                poster.style.transform = `rotateX(0) rotateY(0) scale(1)`;
-                shine.style.background = `transparent`;
-                document.querySelector('.click-hint').textContent = "Click to Float ✨";
+                document.querySelector('.click-hint').textContent = "Tap to Float ✨";
+                resetPoster(); // 回復到自動搖曳狀態
             }
         });
 
