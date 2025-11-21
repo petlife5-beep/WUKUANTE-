@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Altróve - Wu Kuan Te Solo Exhibition</title>
+    <!-- 引入 Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Noto+Serif+TC:wght@300;500;700&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
@@ -131,7 +132,7 @@
 
 
         /* ====================
-           主要內容樣式 (保持不變)
+           主要內容樣式
         ==================== */
         .container {
             max-width: 1200px;
@@ -264,7 +265,39 @@
             display: block;
         }
 
-        /* 裝飾圓環 (呼應海報，增加緩慢旋轉特效) */
+        /* 地圖連結樣式 */
+        .map-link {
+            text-decoration: none;
+            color: inherit;
+            display: block; /* 讓整個區塊可點擊 */
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .map-link:hover .info-text {
+            color: var(--text-gold);
+            text-shadow: 0 0 10px rgba(224, 211, 184, 0.6);
+        }
+
+        .map-link:hover .info-subtext {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .map-pin-icon {
+            display: inline-block;
+            margin-left: 5px;
+            font-style: normal;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+
+        .map-link:hover .map-pin-icon {
+            opacity: 1;
+            transform: translateY(-3px); /* 小小的跳動效果 */
+        }
+
+
+        /* 裝飾圓環 */
         .circle-deco {
             position: absolute;
             top: 50%;
@@ -310,9 +343,13 @@
 </head>
 <body>
 
+    <!-- 背景與特效層容器 -->
     <div class="background-wrapper">
+        <!-- 紋理層 -->
         <div class="texture-overlay"></div>
+        <!-- 滑鼠光暈層 -->
         <div class="spotlight-overlay"></div>
+        <!-- 漂浮粒子層 -->
         <div class="particles-container">
             <div class="particle p1"></div>
             <div class="particle p2"></div>
@@ -324,6 +361,7 @@
         </div>
     </div>
     
+    <!-- 裝飾大圓圈 -->
     <div class="circle-deco"></div>
 
     <div class="container">
@@ -352,10 +390,13 @@
                     <div class="info-text">2025.12.05 (Fri) 19:00</div>
                 </div>
 
+                <!-- 這裡加入了連結功能 -->
                 <div class="info-item">
                     <span class="info-label">Location / 展覽地點</span>
-                    <div class="info-text">Design Sulmondo Gallery</div>
-                    <span class="info-subtext">Via Chiatamone 26, Napoli</span>
+                    <a href="https://www.google.com/maps/search/?api=1&query=Design+Sulmondo+Gallery+Via+Chiatamone+26+Napoli" target="_blank" class="map-link" title="Open in Google Maps">
+                        <div class="info-text">Design Sulmondo Gallery</div>
+                        <span class="info-subtext">Via Chiatamone 26, Napoli <i class="map-pin-icon">📍</i></span>
+                    </a>
                 </div>
             </div>
         </div>
