@@ -3,66 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>復古拍立得照片牆 v2.0</title>
+    <title>復古拍立得照片牆 v3.0</title>
     <style>
-        /* --- 基礎設定 --- */
+        /* --- 基礎設定與背景 --- */
         body {
             margin: 0;
             padding: 0;
-            background-color: #f0e4d7;
-            background-image: radial-gradient(#dccbb5 1px, transparent 1px);
-            background-size: 20px 20px;
+            /* 質感木紋背景 */
+            background-color: #5d432c;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px),
+                radial-gradient(#7a5c42 1px, transparent 0px);
+            background-size: 50px 50px, 50px 50px, 10px 10px;
             height: 100vh;
             overflow: hidden;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', "微軟正黑體", sans-serif;
             user-select: none;
         }
 
-        /* --- 相機本體 (CSS Art) --- */
+        /* --- 提示列 --- */
+        .hint {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fcead6;
+            font-size: 1rem;
+            background: rgba(61, 38, 22, 0.8);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid #8c6b52;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* --- 相機整體結構 (尺寸加大) --- */
         .camera-container {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            width: 260px;
-            height: 240px;
+            bottom: 30px;
+            left: 30px;
+            width: 340px; /* 加大寬度 */
+            height: 320px; /* 加大高度 */
             z-index: 100;
         }
 
+        /* 機身 (皮革質感) */
         .camera-body {
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 200px;
-            background: #333;
-            border-radius: 30px;
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.3), 
-                        inset 2px 2px 5px rgba(255,255,255,0.1);
+            height: 260px;
+            /* 復古棕色皮革漸層 */
+            background: linear-gradient(to bottom, #7c593d, #4a3321);
+            border-radius: 40px;
+            /* 增加金屬邊框感和立體陰影 */
+            box-shadow: 
+                inset 0 0 0 5px #2c1e13, /* 內部縫線感 */
+                inset 5px 5px 10px rgba(255,255,255,0.1),
+                10px 10px 30px rgba(0,0,0,0.5);
             display: flex;
-            justify-content: center;
+            justify-content: space-around;
             align-items: center;
             z-index: 20;
+            padding: 0 20px;
+            box-sizing: border-box;
         }
 
+        /* 裝飾彩條 (更復古的色調) */
         .camera-stripe {
             position: absolute;
-            top: 50%;
+            top: 60%;
+            left: 0;
             width: 100%;
-            height: 20px;
-            background: linear-gradient(90deg, #ff4d4d 20%, #ffaf40 20%, #ffaf40 40%, #18dcff 40%, #18dcff 60%, #7d5fff 60%);
-            opacity: 0.8;
+            height: 24px;
+            background: linear-gradient(90deg, #c0392b 20%, #d35400 20%, #d35400 40%, #2980b9 40%, #2980b9 60%, #8e44ad 60%);
+            opacity: 0.9;
             transform: translateY(-50%);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
         }
 
+        /* 鏡頭組件 (加大並增加金屬反光) */
         .lens-wrapper {
-            width: 120px;
-            height: 120px;
-            background: #111;
+            width: 160px;
+            height: 160px;
+            background: #222;
             border-radius: 50%;
-            border: 8px solid #555;
+            /* 金屬環繞效果 */
+            border: 12px solid #d4af37; /* 金色邊框 */
+            box-shadow: 
+                0 0 0 5px #a38423, /* 外圈深金 */
+                inset 0 5px 15px rgba(0,0,0,0.8);
             position: relative;
             overflow: hidden;
             z-index: 22;
-            box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+            flex-shrink: 0;
+        }
+
+        /* 鏡頭玻璃反光 */
+        .lens-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            /* 模擬鏡頭鍍膜反光 */
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 70%, rgba(100,149,237,0.2) 0%, transparent 50%);
+            pointer-events: none;
         }
 
         video#camera-feed {
@@ -70,396 +118,135 @@
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
+            filter: sepia(0.2) contrast(1.1); /* 視訊本身帶點復古感 */
         }
 
+        /* 閃光燈 (新增) */
+        .flash-unit {
+            width: 60px;
+            height: 90px;
+            background: #d4af37; /* 金屬底座 */
+            border-radius: 10px;
+            border: 3px solid #a38423;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+            margin-left: 20px;
+        }
+        .flash-bulb {
+            width: 40px;
+            height: 50px;
+            background: #eee; /* 燈泡白 */
+            border-radius: 5px;
+            margin: 10px auto;
+            border: 2px solid #ccc;
+            /* 燈泡紋理 */
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.5) 0px, transparent 2px);
+        }
+
+        /* 快門按鈕 (金屬紅) */
         .shutter-btn {
             position: absolute;
-            right: 20px;
-            top: -10px;
-            width: 50px;
-            height: 20px;
-            background: #ff3e3e;
-            border: none;
-            border-radius: 5px 5px 0 0;
+            right: 30px;
+            top: -25px; /* 突出更多 */
+            width: 60px;
+            height: 30px;
+            /* 金屬紅漸層 */
+            background: linear-gradient(to bottom, #ff5e5e, #c0392b);
+            border: 3px solid #a31a0f;
+            border-radius: 10px 10px 0 0;
             cursor: pointer;
             transition: transform 0.1s;
             z-index: 19;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
         }
         
         .shutter-btn:active {
-            transform: translateY(5px);
+            transform: translateY(8px);
+            background: linear-gradient(to bottom, #c0392b, #a31a0f);
         }
 
+        /* 出紙口 */
         .paper-slot {
             position: absolute;
-            top: -5px;
+            top: -8px;
             left: 50%;
             transform: translateX(-50%);
-            width: 180px;
-            height: 10px;
-            background: #1a1a1a;
-            border-radius: 5px;
+            width: 220px;
+            height: 14px;
+            background: #111;
+            border-radius: 8px;
+            border-bottom: 2px solid #333;
             z-index: 18;
         }
 
-        /* --- 拍立得照片 --- */
+        /* --- 垃圾桶 (CSS Art) --- */
+        .trash-can {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 80px;
+            height: 100px;
+            /* 金屬質感 */
+            background: linear-gradient(to right, #7f8c8d, #bdc3c7, #7f8c8d);
+            border-radius: 10px;
+            border: 3px solid #5f6c6d;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+            z-index: 90;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        /* 垃圾桶蓋子 */
+        .trash-can::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            width: 90px;
+            height: 20px;
+            background: linear-gradient(to right, #7f8c8d, #bdc3c7);
+            border-radius: 5px;
+            border: 3px solid #5f6c6d;
+            left: -8px;
+        }
+        /* 垃圾桶提把 */
+        .trash-can::after {
+             content: '';
+            position: absolute;
+            top: -25px;
+            width: 30px;
+            height: 15px;
+            border-radius: 10px 10px 0 0;
+            border: 4px solid #5f6c6d;
+            border-bottom: none;
+            left: 22px;
+        }
+
+        /* 垃圾桶圖示 */
+        .trash-icon {
+            font-size: 40px;
+            color: #5f6c6d;
+            opacity: 0.5;
+        }
+
+        /* 拖曳經過時的狀態 */
+        .trash-can.drag-over {
+            transform: scale(1.1);
+            border-color: #e74c3c; /* 變紅色警告 */
+            background: linear-gradient(to right, #c0392b, #e74c3c, #c0392b);
+        }
+        .trash-can.drag-over .trash-icon {
+            color: #fff;
+            opacity: 1;
+        }
+
+
+        /* --- 拍立得照片 (配合新尺寸調整) --- */
         .polaroid {
             position: absolute;
-            width: 160px;
-            height: 200px;
+            width: 200px;  /* 加大 */
+            height: 250px; /* 加大 */
             background: #fff;
-            padding: 10px 10px 40px 10px;
-            box-sizing: border-box;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-            cursor: grab;
-            transition: filter 5s ease, transform 0.2s;
-            bottom: 40px; 
-            left: 70px;
-            z-index: 10;
-            transform-origin: center;
-        }
-
-        .polaroid img {
-            width: 100%;
-            height: 150px; /* 固定圖片高度 */
-            object-fit: cover;
-            background-color: #000;
-            border: 1px solid #eee;
-            pointer-events: none; /* 讓滑鼠事件穿透圖片，方便拖曳 */
-        }
-
-        /* 下載按鈕樣式 */
-        .download-btn {
-            position: absolute;
-            bottom: 8px;
-            right: 10px;
-            width: 24px;
-            height: 24px;
-            background: #333;
-            color: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            cursor: pointer;
-            opacity: 0; /* 預設隱藏 */
-            transition: opacity 0.3s, transform 0.2s;
-            z-index: 20;
-            text-decoration: none;
-            border: none;
-        }
-
-        /* 滑鼠懸停照片時顯示下載按鈕 */
-        .polaroid:hover .download-btn {
-            opacity: 0.8;
-        }
-        
-        .download-btn:hover {
-            transform: scale(1.1);
-            background: #000;
-            opacity: 1 !important;
-        }
-
-        .polaroid:active {
-            cursor: grabbing;
-            z-index: 1000 !important;
-            transform: scale(1.05);
-        }
-
-        /* --- 動畫效果 --- */
-        .developing img {
-            filter: blur(8px) grayscale(0.8) contrast(0.5) brightness(0.2);
-            transition: filter 5s ease;
-        }
-        
-        .developed img {
-            filter: blur(0) grayscale(0) contrast(1) brightness(1);
-        }
-
-        .ejecting {
-            animation: ejectPaper 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-        }
-
-        @keyframes ejectPaper {
-            from { bottom: 20px; }
-            to { bottom: 220px; }
-        }
-
-        .hint {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #887668;
-            font-size: 0.9rem;
-            background: rgba(255,255,255,0.5);
-            padding: 5px 10px;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="hint">點擊紅鈕拍攝 (有音效) ｜ 懸停照片可下載 ｜ 拖曳照片佈置</div>
-
-    <div class="camera-container">
-        <button class="shutter-btn" onclick="takePhoto()"></button>
-        
-        <div class="camera-body">
-            <div class="camera-stripe"></div>
-            <div class="lens-wrapper">
-                <video id="camera-feed" autoplay playsinline muted></video>
-            </div>
-        </div>
-        <div class="paper-slot"></div>
-    </div>
-
-    <canvas id="capture-canvas" style="display: none;"></canvas>
-
-    <script>
-        const video = document.getElementById('camera-feed');
-        const canvas = document.getElementById('capture-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // 1. 啟動攝像頭
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 640, height: 480 }, 
-                    audio: false 
-                });
-                video.srcObject = stream;
-            } catch (err) {
-                console.error("無法存取相機:", err);
-                alert("請允許相機權限以使用此應用程式。");
-            }
-        }
-        initCamera();
-
-        // 2. 音效合成 (使用 AudioContext 模擬快門聲)
-        function playShutterSound() {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) return;
-            
-            const actx = new AudioContext();
-            const t = actx.currentTime;
-            
-            // 噪音部分 (模擬機械摩擦)
-            const bufferSize = actx.sampleRate * 0.1; // 0.1秒
-            const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
-            
-            const noise = actx.createBufferSource();
-            noise.buffer = buffer;
-            const noiseFilter = actx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.value = 1000;
-            
-            const noiseGain = actx.createGain();
-            noiseGain.gain.setValueAtTime(1, t);
-            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-            
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(actx.destination);
-            noise.start(t);
-
-            // 瞬間高頻 (模擬快門彈簧)
-            const osc = actx.createOscillator();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, t);
-            osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-            
-            const oscGain = actx.createGain();
-            oscGain.gain.setValueAtTime(0.5, t);
-            oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-            
-            osc.connect(oscGain);
-            oscGain.connect(actx.destination);
-            osc.start(t);
-        }
-
-        // 3. 拍照
-        function takePhoto() {
-            playShutterSound(); // 播放音效
-
-            // 確保 Canvas 尺寸
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // 繪製目前影格 (鏡像翻轉)
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // 取得原始影像 DataURL
-            const imgUrl = canvas.toDataURL('image/png');
-            
-            createPolaroid(imgUrl);
-        }
-
-        // 4. 建立照片 DOM
-        function createPolaroid(imgUrl) {
-            const photoDiv = document.createElement('div');
-            photoDiv.classList.add('polaroid', 'developing');
-            
-            const img = document.createElement('img');
-            img.src = imgUrl;
-            
-            // 建立下載按鈕
-            const downloadBtn = document.createElement('button');
-            downloadBtn.classList.add('download-btn');
-            downloadBtn.innerHTML = '⬇';
-            downloadBtn.title = '下載這張照片';
-            
-            // 下載點擊事件
-            downloadBtn.onclick = (e) => {
-                e.stopPropagation(); // 防止觸發拖曳
-                downloadPolaroid(imgUrl); // 執行合成下載
-            };
-
-            photoDiv.appendChild(img);
-            photoDiv.appendChild(downloadBtn);
-            document.body.appendChild(photoDiv);
-
-            // 定位與動畫
-            const cameraRect = document.querySelector('.camera-container').getBoundingClientRect();
-            const startLeft = cameraRect.left + 50;
-            
-            photoDiv.style.left = `${startLeft}px`;
-            photoDiv.style.bottom = `40px`;
-
-            requestAnimationFrame(() => {
-                photoDiv.classList.add('ejecting');
-            });
-
-            setTimeout(() => {
-                photoDiv.classList.remove('developing');
-                photoDiv.classList.add('developed');
-            }, 500);
-
-            makeDraggable(photoDiv);
-        }
-
-        // 5. 合成並下載功能 (將白框與照片合成為一張圖)
-        function downloadPolaroid(photoSrc) {
-            const dlCanvas = document.createElement('canvas');
-            const dlCtx = dlCanvas.getContext('2d');
-            
-            // 設定拍立得的高解析度尺寸 (寬 320, 高 400)
-            const pWidth = 320;
-            const pHeight = 400;
-            const padding = 20;
-            const bottomPadding = 80;
-
-            dlCanvas.width = pWidth;
-            dlCanvas.height = pHeight;
-
-            // 1. 畫白色底紙
-            dlCtx.fillStyle = '#ffffff';
-            dlCtx.fillRect(0, 0, pWidth, pHeight);
-
-            // 2. 畫陰影/邊框線條 (選用，增加立體感)
-            dlCtx.strokeStyle = '#eeeeee';
-            dlCtx.lineWidth = 2;
-            dlCtx.strokeRect(0, 0, pWidth, pHeight);
-
-            // 3. 載入照片並繪製到中間
-            const image = new Image();
-            image.onload = () => {
-                // 保持比例填滿中間區域
-                const contentWidth = pWidth - (padding * 2);
-                const contentHeight = pHeight - padding - bottomPadding;
-                
-                // 模擬 object-fit: cover 的裁切效果
-                const sWidth = image.width;
-                const sHeight = image.height;
-                const sRatio = sWidth / sHeight;
-                const dRatio = contentWidth / contentHeight;
-                
-                let sx, sy, sCropWidth, sCropHeight;
-
-                if (sRatio > dRatio) {
-                    sCropHeight = sHeight;
-                    sCropWidth = sHeight * dRatio;
-                    sx = (sWidth - sCropWidth) / 2;
-                    sy = 0;
-                } else {
-                    sCropWidth = sWidth;
-                    sCropHeight = sWidth / dRatio;
-                    sx = 0;
-                    sy = (sHeight - sCropHeight) / 2;
-                }
-
-                dlCtx.drawImage(image, sx, sy, sCropWidth, sCropHeight, padding, padding, contentWidth, contentHeight);
-
-                // 4. 觸發下載
-                const link = document.createElement('a');
-                link.download = `polaroid_${Date.now()}.png`;
-                link.href = dlCanvas.toDataURL('image/png');
-                link.click();
-            };
-            image.src = photoSrc;
-        }
-
-        // 6. 拖曳邏輯 (維持不變)
-        function makeDraggable(element) {
-            let isDragging = false;
-            let startX, startY, initialLeft, initialTop;
-
-            element.addEventListener('mousedown', startDrag);
-            element.addEventListener('touchstart', startDrag, {passive: false});
-
-            function startDrag(e) {
-                // 如果點擊的是下載按鈕，不啟動拖曳
-                if(e.target.classList.contains('download-btn')) return;
-
-                isDragging = true;
-                const rect = element.getBoundingClientRect();
-                element.classList.remove('ejecting');
-                element.style.bottom = 'auto';
-                element.style.top = `${rect.top}px`;
-                element.style.left = `${rect.left}px`;
-                element.style.transform = `rotate(${Math.random() * 10 - 5}deg) scale(1.05)`;
-                element.style.zIndex = 1000;
-
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                startX = clientX;
-                startY = clientY;
-                initialLeft = parseFloat(element.style.left);
-                initialTop = parseFloat(element.style.top);
-
-                document.addEventListener('mousemove', drag);
-                document.addEventListener('touchmove', drag, {passive: false});
-                document.addEventListener('mouseup', stopDrag);
-                document.addEventListener('touchend', stopDrag);
-            }
-
-            function drag(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                const dx = clientX - startX;
-                const dy = clientY - startY;
-                element.style.left = `${initialLeft + dx}px`;
-                element.style.top = `${initialTop + dy}px`;
-            }
-
-            function stopDrag() {
-                isDragging = false;
-                element.style.zIndex = 50;
-                element.style.transform = element.style.transform.replace('scale(1.05)', 'scale(1)');
-                document.removeEventListener('mousemove', drag);
-                document.removeEventListener('touchmove', drag);
-                document.removeEventListener('mouseup', stopDrag);
-                document.removeEventListener('touchend', stopDrag);
-            }
-        }
-    </script>
-</body>
-</html>
+            padding: 15px 15px 50px 15px; /* 加
