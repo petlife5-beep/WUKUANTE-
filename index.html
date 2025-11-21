@@ -22,162 +22,153 @@
             background-color: var(--bg-color);
             color: var(--text-white);
             overflow-x: hidden;
-            /* 一開始禁止捲動，等動畫跑完 */
-            overflow-y: hidden; 
+            overflow-y: hidden; /* 一開始鎖定捲動，配合開場動畫 */
+            perspective: 1000px; /* 為了 3D 效果 */
         }
 
         /* ====================
-           開場動畫層 (Intro Layer)
-           這是讓畫家驚艷的關鍵
+           開場動畫層 (保留鸚鵡飛行)
         ==================== */
         #intro-layer {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: #06121a; /* 深海黑 */
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            animation: finishIntro 1.5s ease-in-out 4s forwards; /* 4秒後淡出 */
-            pointer-events: none; /* 動畫結束後不擋滑鼠 */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background-color: #06121a; z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            flex-direction: column; pointer-events: none;
+            animation: finishIntro 1.5s ease-in-out 4s forwards;
         }
-
-        .flight-path {
-            position: absolute;
-            width: 100%;
-            height: 200px;
-            top: 40%;
-            transform: translateY(-50%);
-        }
-
-        /* 鸚鵡 (使用 CSS 形狀模擬或 SVG) */
         .bird-shape {
-            position: absolute;
-            left: -10%;
-            width: 40px;
-            height: 40px;
-            background: var(--text-gold);
-            /* 簡單的鳥型剪影 (使用 clip-path) */
+            position: absolute; left: -10%; width: 40px; height: 40px; background: var(--text-gold);
             clip-path: polygon(0% 50%, 30% 0%, 100% 40%, 70% 60%, 40% 100%, 20% 70%);
             box-shadow: 0 0 20px var(--text-gold);
             animation: flyAcross 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
         }
-
         .bird-trail {
-            position: absolute;
-            top: 50%;
-            left: -10%;
-            height: 2px;
+            position: absolute; top: 50%; left: -10%; height: 2px; width: 200px;
             background: linear-gradient(90deg, transparent, rgba(224, 211, 184, 0.8), transparent);
-            width: 200px;
             animation: trailFollow 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
         }
-
         .intro-text {
-            font-family: 'Cinzel', serif;
-            color: var(--text-gold);
-            font-size: 1.5rem;
-            opacity: 0;
-            position: absolute;
-            text-align: center;
-            letter-spacing: 0.2em;
+            font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 1.5rem;
+            opacity: 0; position: absolute; text-align: center; letter-spacing: 0.2em;
         }
-
         .text-1 { top: 60%; animation: showText 1s ease-out 0.5s forwards, hideText 0.5s ease-in 1.8s forwards; }
         .text-2 { top: 60%; animation: showText 1s ease-out 2.2s forwards; }
 
-        @keyframes flyAcross {
-            0% { left: -10%; transform: scale(0.5) rotate(15deg); }
-            50% { transform: scale(1) rotate(0deg); }
-            100% { left: 110%; transform: scale(0.8) rotate(-10deg); }
-        }
-
-        @keyframes trailFollow {
-            0% { left: -15%; opacity: 0; }
-            10% { opacity: 1; }
-            100% { left: 105%; opacity: 0; }
-        }
-
+        @keyframes flyAcross { 0% { left: -10%; transform: scale(0.5) rotate(15deg); } 50% { transform: scale(1) rotate(0deg); } 100% { left: 110%; transform: scale(0.8) rotate(-10deg); } }
+        @keyframes trailFollow { 0% { left: -15%; opacity: 0; } 10% { opacity: 1; } 100% { left: 105%; opacity: 0; } }
         @keyframes showText { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes hideText { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
-        
-        @keyframes finishIntro {
-            to { opacity: 0; visibility: hidden; }
-        }
+        @keyframes finishIntro { to { opacity: 0; visibility: hidden; } }
 
         /* ====================
-           主頁面 (原本的高質感內容)
+           主頁面與互動特效
         ==================== */
         .background-wrapper {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%; z-index: -10;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10;
             background: radial-gradient(circle at center, #1a4a5e 0%, #06121a 100%);
-        }
-        .texture-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('poster.jpg'); background-size: cover; background-position: center;
-            opacity: 0.15; filter: blur(10px) saturate(1.2); z-index: -9;
         }
         .spotlight-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+            /* 增強聚光燈效果，讓周圍更暗，中間更亮 */
+            background: radial-gradient(
+                800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+                rgba(255, 255, 255, 0.15) 0%, 
+                rgba(11, 30, 45, 0.4) 50%,
+                rgba(0, 0, 0, 0.8) 100%
+            );
             z-index: -8; pointer-events: none; transition: background 0.1s ease;
-        }
-        .circle-deco {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 70vw; height: 70vw; border: 1px solid rgba(224, 211, 184, 0.08);
-            border-radius: 50%; z-index: -5; pointer-events: none;
-            animation: rotateCircle 60s linear infinite;
+            mix-blend-mode: overlay; /* 讓光線疊加更自然 */
         }
 
-        /* 內容容器 - 延遲顯示，等開場跑完 */
         .container {
             max-width: 1200px; margin: 0 auto; padding: 40px 20px;
             min-height: 100vh; display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            position: relative; z-index: 1;
-            opacity: 0;
-            animation: pageFadeIn 2s ease-out 3.5s forwards; /* 3.5秒後才出現 */
+            position: relative; z-index: 1; opacity: 0;
+            animation: pageFadeIn 2s ease-out 3.5s forwards;
         }
-
         @keyframes pageFadeIn { to { opacity: 1; } }
 
-        header { text-align: center; margin-bottom: 60px; }
+        header { text-align: center; margin-bottom: 60px; pointer-events: none; } /* 標題不擋滑鼠 */
         h1 { font-family: 'Cinzel', serif; font-size: 4rem; letter-spacing: 0.15em; color: var(--text-white); text-shadow: 0 0 30px rgba(255,255,255,0.4); }
         h2 { font-family: 'Cinzel', serif; font-size: 1.5rem; letter-spacing: 0.3em; color: var(--text-gold); border-bottom: 1px solid rgba(224, 211, 184, 0.3); padding-bottom: 10px; display: inline-block; margin-bottom: 30px;}
         .chinese-title { font-family: 'Noto Serif TC', serif; font-size: 2rem; letter-spacing: 0.5em; margin-top: 10px; display: block; font-weight: 300; }
-        .artist-name { font-size: 1.1rem; letter-spacing: 0.2em; margin-top: 15px; opacity: 0.8; }
-
-        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; width: 100%; align-items: center; }
         
-        .poster-display {
-            position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.6); border-radius: 4px; overflow: hidden;
-            transition: transform 0.5s ease;
-        }
-        .poster-display:hover { transform: translateY(-15px) scale(1.02); }
-        .poster-display img { width: 100%; height: auto; display: block; }
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; width: 100%; align-items: center; }
 
+        /* --- 3D 海報互動區 (核心特效) --- */
+        .poster-wrapper {
+            position: relative;
+            perspective: 1000px; /* 定義 3D 空間 */
+            cursor: pointer; /* 提示可點擊 */
+        }
+
+        .poster-display {
+            position: relative;
+            border-radius: 4px;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out; /* 滑鼠移動時的平滑過渡 */
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+
+        .poster-display img {
+            width: 100%; height: auto; display: block;
+            border-radius: 4px;
+        }
+
+        /* 反光層 (Sheen) */
+        .poster-shine {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(
+                135deg, 
+                rgba(255,255,255,0) 0%, 
+                rgba(255,255,255,0.3) 50%, 
+                rgba(255,255,255,0) 100%
+            );
+            transform: translateX(-100%); /* 初始位置 */
+            transition: transform 0.1s ease-out;
+            pointer-events: none;
+            mix-blend-mode: soft-light;
+            z-index: 2;
+        }
+
+        /* 點擊後的漂浮動畫 Class */
+        .poster-display.floating {
+            animation: floatAnimation 6s ease-in-out infinite;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.8), 0 0 30px rgba(224, 211, 184, 0.3); /* 增加發光感 */
+        }
+
+        /* 漂浮動畫：上下移動 + 輕微旋轉 */
+        @keyframes floatAnimation {
+            0%, 100% { transform: translateY(0) rotateX(0) rotateY(0) scale(1.05); }
+            50% { transform: translateY(-20px) rotateX(2deg) rotateY(-2deg) scale(1.05); }
+        }
+
+        /* 提示文字 */
+        .click-hint {
+            position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+            color: var(--text-gold); font-size: 0.8rem; opacity: 0.6; letter-spacing: 0.1em;
+            animation: pulse 2s infinite; pointer-events: none;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+
+        /* --- 資訊卡片 --- */
         .info-card {
-            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px);
             padding: 50px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
             box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            transform: translateZ(0); /* 確保文字在最上層 */
         }
         .info-item { margin-bottom: 30px; border-left: 2px solid var(--text-gold); padding-left: 20px; }
-        .info-label { font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 0.9rem; letter-spacing: 0.1em; margin-bottom: 8px; display: block; }
-        .info-text { font-size: 1.1rem; font-weight: 300; color: #fff; }
+        .info-label { font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 0.9rem; margin-bottom: 8px; display: block; }
+        .info-text { font-size: 1.1rem; color: #fff; }
         .info-subtext { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 5px; display: block; }
 
-        .map-link { text-decoration: none; color: inherit; display: block; transition: all 0.3s ease; }
+        .map-link { text-decoration: none; color: inherit; display: block; }
         .map-link:hover .info-text { color: var(--text-gold); text-shadow: 0 0 10px rgba(224, 211, 184, 0.6); }
-        .map-pin-icon { display: inline-block; margin-left: 5px; font-style: normal; }
 
         footer { margin-top: auto; padding: 20px; text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.4); width: 100%; }
-
-        @keyframes rotateCircle { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+        
         @media (max-width: 900px) {
             .content-grid { grid-template-columns: 1fr; gap: 40px; }
             h1 { font-size: 2.5rem; }
@@ -187,34 +178,37 @@
 </head>
 <body>
 
-    <!-- 開場動畫層 -->
+    <!-- 開場動畫 -->
     <div id="intro-layer">
-        <div class="flight-path">
+        <div style="position:relative; width:100%; height:200px;">
             <div class="bird-trail"></div>
-            <div class="bird-shape"></div> <!-- 飛行的金色鸚鵡 -->
+            <div class="bird-shape"></div>
         </div>
         <div class="intro-text text-1">From Taiwan...</div>
         <div class="intro-text text-2">To Italy</div>
     </div>
 
-    <!-- 主頁面 -->
+    <!-- 背景光影特效 -->
     <div class="background-wrapper">
-        <div class="texture-overlay"></div>
-        <div class="spotlight-overlay"></div>
+        <div class="spotlight-overlay"></div> <!-- 這就是跟隨滑鼠的投射燈 -->
     </div>
-    <div class="circle-deco"></div>
 
     <div class="container">
         <header>
             <h2>Wu Kuan Te Solo Exhibition</h2>
             <h1>Altróve</h1>
             <span class="chinese-title">《他方》</span>
-            <p class="artist-name">吳冠德 創作個展</p>
+            <p style="margin-top:15px; opacity:0.8; letter-spacing:0.2em;">吳冠德 創作個展</p>
         </header>
 
         <div class="content-grid">
-            <div class="poster-display">
-                <img src="poster.jpg" alt="Altróve Exhibition Poster">
+            <!-- 互動海報區 -->
+            <div class="poster-wrapper" id="posterWrapper">
+                <div class="poster-display" id="poster">
+                    <div class="poster-shine"></div> <!-- 反光層 -->
+                    <img src="poster.jpg" alt="Altróve Exhibition Poster">
+                </div>
+                <div class="click-hint">Click to Float ✨</div>
             </div>
 
             <div class="info-card">
@@ -223,28 +217,25 @@
                     <div class="info-text">2025.12.05 — 2026.01.16</div>
                     <span class="info-subtext">Tue - Sat | 11:00 - 19:00</span>
                 </div>
-
                 <div class="info-item">
                     <span class="info-label">Vernissage / 開幕酒會</span>
                     <div class="info-text">2025.12.05 (Fri) 19:00</div>
                 </div>
-
                 <div class="info-item">
                     <span class="info-label">Location / 展覽地點</span>
                     <a href="https://www.google.com/maps/search/?api=1&query=Design+Sulmondo+Gallery+Via+Chiatamone+26+Napoli" target="_blank" class="map-link">
                         <div class="info-text">Design Sulmondo Gallery</div>
-                        <span class="info-subtext">Via Chiatamone 26, Napoli <i class="map-pin-icon">📍</i></span>
+                        <span class="info-subtext">Via Chiatamone 26, Napoli 📍</span>
                     </a>
                 </div>
             </div>
         </div>
 
-        <footer>
-            &copy; 2025 Wu Kuan Te. All Rights Reserved.
-        </footer>
+        <footer>&copy; 2025 Wu Kuan Te. All Rights Reserved.</footer>
     </div>
 
     <script>
+        // 1. 全局聚光燈效果 (Spotlight)
         document.addEventListener('mousemove', (e) => {
             const x = e.clientX / window.innerWidth * 100;
             const y = e.clientY / window.innerHeight * 100;
@@ -252,7 +243,65 @@
             document.documentElement.style.setProperty('--mouse-y', y + '%');
         });
 
-        // 動畫結束後恢復捲動
+        // 2. 海報 3D 互動與點擊漂浮效果
+        const wrapper = document.getElementById('posterWrapper');
+        const poster = document.getElementById('poster');
+        const shine = document.querySelector('.poster-shine');
+        let isFloating = false; // 狀態標記
+
+        // 滑鼠移動時的 3D 傾斜運算
+        wrapper.addEventListener('mousemove', (e) => {
+            if (isFloating) return; // 如果正在漂浮，就暫停滑鼠互動
+
+            const rect = wrapper.getBoundingClientRect();
+            const x = e.clientX - rect.left; // 滑鼠在海報內的 X 座標
+            const y = e.clientY - rect.top;  // 滑鼠在海報內的 Y 座標
+            
+            // 計算中心點
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            // 計算旋轉角度 (除以 20 是為了讓旋轉不要太劇烈)
+            const rotateX = (centerY - y) / 20; 
+            const rotateY = (x - centerX) / 20;
+
+            // 應用 3D 旋轉
+            poster.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+
+            // 計算反光位置 (跟隨滑鼠相反方向移動)
+            const shineX = (x / rect.width) * 100;
+            const shineY = (y / rect.height) * 100;
+            shine.style.background = `radial-gradient(circle at ${shineX}% ${shineY}%, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 60%)`;
+        });
+
+        // 滑鼠離開時復原
+        wrapper.addEventListener('mouseleave', () => {
+            if (isFloating) return;
+            poster.style.transform = `rotateX(0) rotateY(0) scale(1)`;
+            shine.style.background = `transparent`;
+        });
+
+        // 點擊觸發/取消漂浮
+        wrapper.addEventListener('click', () => {
+            isFloating = !isFloating; // 切換開關
+            
+            if (isFloating) {
+                // 開始漂浮
+                poster.style.transform = 'none'; // 先清除 JS 設的 transform
+                poster.classList.add('floating'); // 加入 CSS 動畫
+                document.querySelector('.click-hint').textContent = "Tap again to land ⚓";
+                // 漂浮時加入金色光暈
+                shine.style.background = `linear-gradient(135deg, rgba(224, 211, 184, 0.1) 0%, rgba(224, 211, 184, 0.3) 50%, rgba(224, 211, 184, 0.1) 100%)`;
+            } else {
+                // 降落 (取消漂浮)
+                poster.classList.remove('floating');
+                poster.style.transform = `rotateX(0) rotateY(0) scale(1)`;
+                shine.style.background = `transparent`;
+                document.querySelector('.click-hint').textContent = "Click to Float ✨";
+            }
+        });
+
+        // 動畫結束後解鎖頁面捲動
         setTimeout(() => {
             document.body.style.overflowY = 'auto';
         }, 4500);
