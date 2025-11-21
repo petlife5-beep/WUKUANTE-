@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>復古拍立得 v4.0 (直式修正版)</title>
+    <title>復古拍立得 v5.0 (自由照片牆)</title>
     <style>
         /* --- 基礎設定 --- */
         body {
@@ -15,7 +16,7 @@
                 linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
                 radial-gradient(#6e5039 1px, transparent 0px);
             background-size: 40px 40px, 40px 40px, 10px 10px;
-            height: 100dvh; /* 解決手機網址列遮擋 */
+            height: 100dvh; /* 確保佔滿手機螢幕高度 */
             overflow: hidden;
             font-family: sans-serif;
             user-select: none;
@@ -29,40 +30,41 @@
             left: 50%;
             transform: translateX(-50%);
             color: #fcead6;
-            font-size: 0.85rem;
-            background: rgba(40, 25, 15, 0.8);
-            padding: 6px 15px;
+            font-size: 0.9rem;
+            background: rgba(40, 25, 15, 0.85);
+            padding: 8px 20px;
             border-radius: 20px;
             border: 1px solid #8c6b52;
             pointer-events: none;
-            width: 85%;
-            text-align: center;
+            width: auto;
+            white-space: nowrap;
             z-index: 2000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
 
-        /* --- 相機容器 (尺寸縮小) --- */
+        /* --- 相機容器 --- */
         .camera-container {
             position: fixed;
             bottom: 15px;
             left: 50%;
             transform: translateX(-50%);
-            /* 從原本的 340px 改小 */
             width: 280px; 
             height: 260px;
             z-index: 100;
             transform-origin: bottom center;
+            pointer-events: none; /* 讓點擊可以穿透容器邊緣 */
         }
 
-        /* RWD: 手機版再縮小一點 */
+        /* 讓相機內部的互動元素恢復感應 */
+        .camera-container > * {
+            pointer-events: auto;
+        }
+
+        /* RWD: 手機版適配 */
         @media (max-width: 600px) {
             .camera-container {
-                transform: translateX(-50%) scale(0.8); /* 縮小至 80% */
-                bottom: 5px;
-            }
-            .trash-can {
-                transform: scale(0.75);
-                right: 5px !important;
-                bottom: 5px !important;
+                transform: translateX(-50%) scale(0.85);
+                bottom: 10px;
             }
         }
 
@@ -71,7 +73,7 @@
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 210px; /* 高度縮小 */
+            height: 210px;
             background: linear-gradient(to bottom, #7c593d, #4a3321);
             border-radius: 35px;
             box-shadow: 
@@ -84,7 +86,6 @@
             z-index: 20;
         }
 
-        /* 裝飾線 */
         .camera-stripe {
             position: absolute;
             top: 55%;
@@ -96,7 +97,6 @@
             pointer-events: none;
         }
 
-        /* 鏡頭 (縮小) */
         .lens-wrapper {
             width: 130px;
             height: 130px;
@@ -112,12 +112,11 @@
         video#camera-feed {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* 這裡只是預覽，保持填滿 */
+            object-fit: cover;
             transform: scaleX(-1);
             filter: sepia(0.2) contrast(1.1);
         }
 
-        /* 閃光燈 (調整位置) */
         .flash-unit {
             position: absolute;
             right: 25px;
@@ -138,7 +137,6 @@
             border: 1px solid #ccc;
         }
 
-        /* 快門按鈕 */
         .shutter-btn {
             position: absolute;
             right: 35px;
@@ -151,13 +149,14 @@
             border-radius: 10px 10px 0 0;
             cursor: pointer;
             z-index: 19;
+            /* 增加點擊區域 */
+            padding: 0; 
         }
         .shutter-btn:active { transform: translateY(5px); }
 
-        /* 出紙口 */
         .paper-slot {
             position: absolute;
-            bottom: 195px; /* 調整位置 */
+            bottom: 195px;
             left: 50%;
             transform: translateX(-50%);
             width: 180px;
@@ -167,47 +166,26 @@
             z-index: 18;
         }
 
-        /* --- 垃圾桶 --- */
-        .trash-can {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 75px;
-            background: linear-gradient(to right, #95a5a6, #bdc3c7);
-            border-radius: 6px;
-            border: 2px solid #7f8c8d;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 90;
-            display: flex; justify-content: center; align-items: center;
-            transition: transform 0.2s;
-        }
-        .trash-icon { font-size: 30px; }
-        .trash-can.drag-over {
-            transform: scale(1.2);
-            border-color: #e74c3c;
-            background: #e74c3c;
-        }
-
-        /* --- 拍立得相紙 (改為直式 3:4) --- */
+        /* --- 拍立得相紙 --- */
         .polaroid {
             position: absolute;
-            width: 160px;  /* 寬度 */
-            height: 230px; /* 高度拉長 */
+            width: 160px;
+            height: 230px;
             background: #fff;
-            padding: 10px 10px 50px 10px; /* 底部留白加大 */
+            padding: 10px 10px 50px 10px;
             box-sizing: border-box;
-            box-shadow: 3px 3px 12px rgba(0,0,0,0.25);
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
             cursor: grab;
-            transition: filter 5s ease;
+            transition: filter 5s ease; /* 只保留濾鏡動畫 */
             opacity: 0;
             z-index: 10;
-            touch-action: none; /* 關鍵：防止手機拖曳延遲 */
+            /* 關鍵：防止觸控延遲 */
+            touch-action: none; 
         }
 
         .polaroid img {
             width: 100%;
-            height: 170px; /* 圖片區域改為長方形 */
+            height: 170px;
             object-fit: cover;
             background-color: #000;
             border: 1px solid #eee;
@@ -215,58 +193,64 @@
             display: block;
         }
 
-        /* 下載按鈕 (強制顯示) */
+        /* --- 下載按鈕 (大幅優化) --- */
         .download-btn {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 32px; /* 加大按鈕 */
-            height: 32px;
+            bottom: 5px; /* 靠下 */
+            right: 5px;  /* 靠右 */
+            width: 48px; /* 加大尺寸，手指好點 */
+            height: 48px;
             background: #222;
             color: #fff;
             border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
             border: 2px solid #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            z-index: 50;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            z-index: 100; /* 確保在最上層 */
             cursor: pointer;
-            opacity: 1 !important; /* 強制不透明，避免不見 */
+            opacity: 1 !important;
+            /* 移除所有可能干擾的樣式 */
+            padding: 0;
+            margin: 0;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .download-btn svg {
-            width: 18px;
-            height: 18px;
-            pointer-events: none; /* 讓點擊穿透到按鈕本身 */
+            width: 24px; /* 圖示也加大 */
+            height: 24px;
+            pointer-events: none;
+            fill: none;
+            stroke: #fff;
+            stroke-width: 2.5;
         }
 
-        .download-btn:active { transform: scale(0.9); background: #000; }
+        .download-btn:active { 
+            transform: scale(0.9); 
+            background: #000; 
+        }
 
-        /* 動畫類別 */
+        /* 動畫 */
         .developing img { filter: blur(8px) grayscale(0.9) contrast(0.6) brightness(0.4); }
         .developed img { filter: blur(0) grayscale(0) contrast(1) brightness(1); }
 
         .ejecting { 
             opacity: 1 !important;
-            animation: eject 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
+            animation: eject 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards; 
         }
         @keyframes eject {
-            0% { transform: translateY(0) rotate(0); }
-            100% { transform: translateY(-210px) rotate(0); }
-        }
-
-        .deleting {
-            transition: all 0.3s ease-in;
-            transform: scale(0) rotate(180deg) !important;
-            opacity: 0 !important;
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-210px); }
         }
 
     </style>
 </head>
 <body>
 
-    <div class="hint">點紅鈕拍攝｜點箭頭儲存｜拖曳到垃圾桶丟棄</div>
+    <div class="hint">點紅鈕拍攝 ｜ 拖曳照片佈置 ｜ 點黑鈕下載</div>
 
-    <div class="camera-container" id="cameraContainer">
+    <div class="camera-container">
         <button class="shutter-btn" onclick="takePhoto()"></button>
         
         <div class="camera-body">
@@ -279,23 +263,20 @@
         <div class="paper-slot" id="paperSlot"></div>
     </div>
 
-    <div class="trash-can" id="trashCan">
-        <div class="trash-icon">🗑️</div>
-    </div>
-
     <canvas id="capture-canvas" style="display: none;"></canvas>
 
     <script>
         const video = document.getElementById('camera-feed');
         const canvas = document.getElementById('capture-canvas');
         const ctx = canvas.getContext('2d');
-        const trashCan = document.getElementById('trashCan');
         const paperSlot = document.getElementById('paperSlot');
+        
+        // 用於管理照片層級 (Z-Index)
+        let highestZIndex = 100;
 
         // 1. 初始化相機
         async function initCamera() {
             try {
-                // 嘗試請求高解析度
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: "user",
@@ -312,14 +293,13 @@
         }
         initCamera();
 
-        // 2. 播放音效
+        // 2. 音效
         function playShutterSound() {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
             const actx = new AudioContext();
             const t = actx.currentTime;
             
-            // 高頻機械聲
             const osc = actx.createOscillator();
             const gain = actx.createGain();
             osc.frequency.setValueAtTime(600, t);
@@ -328,7 +308,6 @@
             gain.gain.linearRampToValueAtTime(0, t + 0.1);
             osc.connect(gain); gain.connect(actx.destination); osc.start(t);
 
-            // 低頻快門聲
             const noise = actx.createBufferSource();
             const buffer = actx.createBuffer(1, actx.sampleRate * 0.15, actx.sampleRate);
             const data = buffer.getChannelData(0);
@@ -340,46 +319,32 @@
             noise.connect(nGain); nGain.connect(actx.destination); noise.start(t);
         }
 
-        // 3. 拍照並裁切為直式
+        // 3. 拍照
         function takePhoto() {
             playShutterSound();
 
             const vW = video.videoWidth;
             const vH = video.videoHeight;
-            
-            // 設定 Canvas 大小
             canvas.width = vW;
             canvas.height = vH;
             
-            // 計算直式裁切區域 (3:4 比例)
-            // 如果是橫向視訊，我們取中間的直條
-            let cropW, cropH, startX, startY;
-            
-            // 目標比例 3:4 (例如 300x400)
+            // 3:4 直式裁切邏輯
             const targetRatio = 3/4;
             const sourceRatio = vW / vH;
+            let cropW, cropH, startX, startY;
 
             if (sourceRatio > targetRatio) {
-                // 視訊比較寬，以高度為基準，裁掉左右
-                cropH = vH;
-                cropW = vH * targetRatio;
-                startX = (vW - cropW) / 2;
-                startY = 0;
+                cropH = vH; cropW = vH * targetRatio;
+                startX = (vW - cropW) / 2; startY = 0;
             } else {
-                // 視訊比較高 (手機直立時)，以寬度為基準，裁掉上下
-                cropW = vW;
-                cropH = vW / targetRatio;
-                startX = 0;
-                startY = (vH - cropH) / 2;
+                cropW = vW; cropH = vW / targetRatio;
+                startX = 0; startY = (vH - cropH) / 2;
             }
 
-            // 創建一個暫存的裁切用 Canvas
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = cropW;
-            tempCanvas.height = cropH;
+            tempCanvas.width = cropW; tempCanvas.height = cropH;
             const tempCtx = tempCanvas.getContext('2d');
 
-            // 繪製並鏡像翻轉
             tempCtx.translate(cropW, 0);
             tempCtx.scale(-1, 1);
             tempCtx.drawImage(video, startX, startY, cropW, cropH, 0, 0, cropW, cropH);
@@ -387,40 +352,45 @@
             createPolaroid(tempCanvas.toDataURL('image/png'));
         }
 
-        // 4. 產生照片
+        // 4. 產生照片 DOM
         function createPolaroid(imgUrl) {
             const photoDiv = document.createElement('div');
             photoDiv.classList.add('polaroid', 'developing');
             
+            // 確保新照片在最上層，但不要蓋過介面
+            // 這裡不設定 zIndex，讓它自然堆疊，拖曳時再拉高
+            
             const img = document.createElement('img');
             img.src = imgUrl;
             
-            // 下載按鈕 (SVG 圖示)
-            const downloadBtn = document.createElement('button');
+            // 下載按鈕 (使用 SVG)
+            const downloadBtn = document.createElement('div'); // 改用 div 避免 button 的預設行為
             downloadBtn.classList.add('download-btn');
-            downloadBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+            downloadBtn.innerHTML = `<svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>`;
             
-            // 處理下載點擊 (阻擋冒泡)
-            const handleDownload = (e) => {
-                e.stopPropagation(); // 防止觸發拖曳
-                e.preventDefault();
+            // 綁定下載事件
+            // 使用 touchstart 確保手機上反應最快，並且不會傳遞給 parent
+            const triggerDownload = (e) => {
+                e.stopPropagation(); // 絕對阻止冒泡
+                e.preventDefault();  // 阻止後續點擊模擬
                 downloadPolaroid(imgUrl);
             };
-            downloadBtn.addEventListener('touchstart', handleDownload, {passive: false});
-            downloadBtn.addEventListener('mousedown', handleDownload);
+            
+            downloadBtn.addEventListener('touchstart', triggerDownload, {passive: false});
+            downloadBtn.addEventListener('mousedown', triggerDownload);
 
             photoDiv.appendChild(img);
             photoDiv.appendChild(downloadBtn);
             document.body.appendChild(photoDiv);
 
-            // 計算初始位置 (從相機出紙口出來)
+            // 初始位置計算
             const slotRect = paperSlot.getBoundingClientRect();
-            const photoWidth = 160; // CSS設定的寬度
+            const photoWidth = 160; 
             
             photoDiv.style.left = (slotRect.left + slotRect.width/2 - photoWidth/2) + 'px';
             photoDiv.style.top = slotRect.top + 'px';
 
-            // 觸發動畫
+            // 彈出動畫
             requestAnimationFrame(() => {
                 photoDiv.classList.add('ejecting');
             });
@@ -434,31 +404,25 @@
             makeDraggable(photoDiv);
         }
 
-        // 5. 下載合成圖
+        // 5. 下載功能
         function downloadPolaroid(sourceUrl) {
             const dlCanvas = document.createElement('canvas');
             const dlCtx = dlCanvas.getContext('2d');
-            
-            // 設定下載圖片尺寸 (高解析度直式)
             const w = 600;
             const h = 800;
             const padding = 40;
-            const bottom = 160; // 底部留白
+            const bottom = 160;
 
             dlCanvas.width = w;
             dlCanvas.height = h;
 
-            // 白底
             dlCtx.fillStyle = '#fff';
             dlCtx.fillRect(0, 0, w, h);
             
-            // 圖片
             const image = new Image();
             image.onload = () => {
-                dlCtx.fillStyle = '#000';
-                // 黑色內框
+                dlCtx.fillStyle = '#111';
                 dlCtx.fillRect(padding, padding, w - padding*2, h - padding - bottom);
-                // 照片
                 dlCtx.drawImage(image, padding+2, padding+2, w - padding*2 - 4, h - padding - bottom - 4);
                 
                 const link = document.createElement('a');
@@ -469,25 +433,29 @@
             image.src = sourceUrl;
         }
 
-        // 6. 拖曳邏輯 (修正點擊消失bug)
+        // 6. 自由拖曳邏輯 (無垃圾桶)
         function makeDraggable(el) {
             let isDragging = false;
-            let hasMoved = false; // 關鍵：判斷是否真的移動了
             let startX, startY, initialLeft, initialTop;
 
             const start = (e) => {
+                // 如果點到下載按鈕，直接忽略拖曳邏輯
                 if (e.target.closest('.download-btn')) return;
-                
+
                 isDragging = true;
-                hasMoved = false; // 重置
                 
-                // 停止動畫並固定位置
+                // 移除動畫類別，將位置鎖定為當前位置
                 const rect = el.getBoundingClientRect();
                 el.classList.remove('ejecting');
-                el.style.top = rect.top + 'px';
+                
+                // 轉換為絕對定位
                 el.style.left = rect.left + 'px';
-                el.style.transform = 'scale(1.05)';
-                el.style.zIndex = 999;
+                el.style.top = rect.top + 'px';
+                el.style.transform = 'none'; // 清除動畫的 transform
+                
+                // 讓當前拖曳的照片跑到最上層
+                highestZIndex++;
+                el.style.zIndex = highestZIndex;
 
                 const clientX = e.clientX || e.touches[0].clientX;
                 const clientY = e.clientY || e.touches[0].clientY;
@@ -495,11 +463,14 @@
                 startY = clientY;
                 initialLeft = parseFloat(el.style.left);
                 initialTop = parseFloat(el.style.top);
+                
+                // 拖曳時稍微放大並旋轉一點
+                el.style.transform = `scale(1.05) rotate(${Math.random() * 4 - 2}deg)`;
             };
 
             const move = (e) => {
                 if (!isDragging) return;
-                e.preventDefault(); // 防止捲動
+                e.preventDefault(); // 防止畫面滾動
 
                 const clientX = e.clientX || e.touches[0].clientX;
                 const clientY = e.clientY || e.touches[0].clientY;
@@ -507,45 +478,24 @@
                 const dx = clientX - startX;
                 const dy = clientY - startY;
 
-                // 只有移動超過一點點距離才算 moved (防止手抖誤判)
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                    hasMoved = true;
-                }
-
                 el.style.left = (initialLeft + dx) + 'px';
                 el.style.top = (initialTop + dy) + 'px';
-
-                // 垃圾桶判定
-                const r1 = el.getBoundingClientRect();
-                const r2 = trashCan.getBoundingClientRect();
-                const overlap = !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
-
-                if (overlap) trashCan.classList.add('drag-over');
-                else trashCan.classList.remove('drag-over');
             };
 
             const end = (e) => {
                 if (!isDragging) return;
                 isDragging = false;
-
-                const r1 = el.getBoundingClientRect();
-                const r2 = trashCan.getBoundingClientRect();
-                const overlap = !(r1.right < r2.left || r1.left > r2.right || r1.bottom < r2.top || r1.top > r2.bottom);
-
-                // 只有 "真的移動過" 且 "碰到垃圾桶" 才會刪除
-                if (hasMoved && overlap) {
-                    trashCan.classList.remove('drag-over');
-                    el.classList.add('deleting');
-                    setTimeout(() => el.remove(), 300);
-                } else {
-                    // 復原
-                    el.style.zIndex = 10;
-                    el.style.transform = 'scale(1) rotate(' + (Math.random()*6-3) + 'deg)';
-                }
+                // 放開後，保持位置，但縮回正常大小
+                // 保留一點點隨機角度讓畫面更自然
+                const currentRotation = el.style.transform.match(/rotate\(([^)]+)\)/);
+                const rot = currentRotation ? currentRotation[1] : (Math.random() * 6 - 3) + 'deg';
+                el.style.transform = `scale(1) rotate(${rot})`;
             };
 
             el.addEventListener('mousedown', start);
             el.addEventListener('touchstart', start, {passive: false});
+            
+            // 綁定到 document 確保拖曳出元素範圍也能運作
             document.addEventListener('mousemove', move);
             document.addEventListener('touchmove', move, {passive: false});
             document.addEventListener('mouseup', end);
