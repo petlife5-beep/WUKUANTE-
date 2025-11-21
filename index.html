@@ -4,364 +4,204 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Altróve - Wu Kuan Te Solo Exhibition</title>
-    <!-- 引入 Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Noto+Serif+TC:wght@300;500;700&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            /* 從海報中提取的主色調 */
             --bg-color: #0b1e2d;
-            --accent-color: #005f73;
-            --text-gold: #e0d3b8; /* 接近海報中圓環的光澤色 */
+            --text-gold: #e0d3b8;
             --text-white: #f5f5f5;
-            --glass-bg: rgba(11, 30, 45, 0.75);
-            --mouse-x: 50%;
-            --mouse-y: 50%;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Montserrat', 'Noto Serif TC', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-white);
-            line-height: 1.6;
             overflow-x: hidden;
-            min-height: 100vh;
+            /* 一開始禁止捲動，等動畫跑完 */
+            overflow-y: hidden; 
         }
 
         /* ====================
-           背景與特效層
+           開場動畫層 (Intro Layer)
+           這是讓畫家驚艷的關鍵
         ==================== */
-        .background-wrapper {
+        #intro-layer {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            z-index: -10;
-            background: radial-gradient(circle at center, #1a4a5e 0%, #06121a 100%);
-            overflow: hidden;
-        }
-
-        /* 模擬海報紋理 */
-        .texture-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('poster.jpg'); /* 替換為你的海報路徑 */
-            background-size: cover;
-            background-position: center;
-            opacity: 0.15;
-            filter: blur(10px) saturate(1.2);
-            z-index: -9;
-        }
-
-        /* 特效1：滑鼠跟隨光暈 */
-        .spotlight-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* 使用 CSS 變數追蹤滑鼠位置 */
-            background: radial-gradient(
-                600px circle at var(--mouse-x) var(--mouse-y), 
-                rgba(255, 255, 255, 0.1) 0%,
-                transparent 40%
-            );
-            z-index: -8;
-            pointer-events: none; /* 確保不擋住滑鼠操作 */
-            transition: background 0.1s ease; /* 讓光暈移動更滑順 */
-        }
-
-        /* 特效2：漂浮粒子容器 */
-        .particles-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -7;
-            pointer-events: none;
-        }
-
-        .particle {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(224, 211, 184, 0.6); /* 金色微塵 */
-            box-shadow: 0 0 5px rgba(224, 211, 184, 0.4);
-            bottom: -10px;
-            animation: floatUp linear infinite;
-        }
-
-        /* 粒子動畫定義 */
-        @keyframes floatUp {
-            0% {
-                transform: translateY(0) scale(0.5);
-                opacity: 0;
-            }
-            20% {
-                opacity: 0.7;
-            }
-            80% {
-                opacity: 0.5;
-            }
-            100% {
-                transform: translateY(-110vh) scale(1.2); /* 向上漂浮超過視窗 */
-                opacity: 0;
-            }
-        }
-
-        /* 個別粒子的隨機化設定 (大小、位置、速度、延遲) */
-        .p1 { width: 4px; height: 4px; left: 10%; animation-duration: 15s; animation-delay: 0s; }
-        .p2 { width: 6px; height: 6px; left: 25%; animation-duration: 22s; animation-delay: -5s; }
-        .p3 { width: 3px; height: 3px; left: 40%; animation-duration: 18s; animation-delay: -10s; }
-        .p4 { width: 5px; height: 5px; left: 55%; animation-duration: 25s; animation-delay: -2s; }
-        .p5 { width: 4px; height: 4px; left: 70%; animation-duration: 20s; animation-delay: -12s; }
-        .p6 { width: 7px; height: 7px; left: 85%; animation-duration: 28s; animation-delay: -7s; }
-        .p7 { width: 3px; height: 3px; left: 95%; animation-duration: 19s; animation-delay: -3s; }
-
-
-        /* ====================
-           主要內容樣式
-        ==================== */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            min-height: 100vh;
+            height: 100vh;
+            background-color: #06121a; /* 深海黑 */
+            z-index: 9999;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            position: relative;
-            z-index: 1;
+            flex-direction: column;
+            animation: finishIntro 1.5s ease-in-out 4s forwards; /* 4秒後淡出 */
+            pointer-events: none; /* 動畫結束後不擋滑鼠 */
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 60px;
-            opacity: 0;
-            animation: fadeUp 1.2s ease-out forwards;
-        }
-
-        h1 {
-            font-family: 'Cinzel', serif;
-            font-size: 4rem;
-            letter-spacing: 0.15em;
-            color: var(--text-white);
-            font-weight: 400;
-            margin-bottom: 10px;
-            text-shadow: 0 0 30px rgba(255,255,255,0.4); /* 增強標題光暈 */
-        }
-
-        h2 {
-            font-family: 'Cinzel', serif;
-            font-size: 1.5rem;
-            letter-spacing: 0.3em;
-            color: var(--text-gold);
-            margin-bottom: 30px;
-            text-transform: uppercase;
-            border-bottom: 1px solid rgba(224, 211, 184, 0.3);
-            display: inline-block;
-            padding-bottom: 10px;
-        }
-
-        .chinese-title {
-            font-family: 'Noto Serif TC', serif;
-            font-size: 2rem;
-            letter-spacing: 0.5em;
-            margin-top: 10px;
-            display: block;
-            font-weight: 300;
-            color: var(--text-white);
-            text-shadow: 0 0 15px rgba(255,255,255,0.2);
-        }
-
-        .artist-name {
-            font-size: 1.1rem;
-            letter-spacing: 0.2em;
-            margin-top: 15px;
-            opacity: 0.8;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 50px;
+        .flight-path {
+            position: absolute;
             width: 100%;
-            align-items: center;
-            opacity: 0;
-            animation: fadeUp 1.2s ease-out 0.3s forwards;
+            height: 200px;
+            top: 40%;
+            transform: translateY(-50%);
         }
 
-        .poster-display {
-            position: relative;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-            border-radius: 4px;
-            overflow: hidden;
-            transition: transform 0.5s ease, box-shadow 0.5s ease;
+        /* 鸚鵡 (使用 CSS 形狀模擬或 SVG) */
+        .bird-shape {
+            position: absolute;
+            left: -10%;
+            width: 40px;
+            height: 40px;
+            background: var(--text-gold);
+            /* 簡單的鳥型剪影 (使用 clip-path) */
+            clip-path: polygon(0% 50%, 30% 0%, 100% 40%, 70% 60%, 40% 100%, 20% 70%);
+            box-shadow: 0 0 20px var(--text-gold);
+            animation: flyAcross 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
         }
 
-        .poster-display:hover {
-            transform: translateY(-15px) scale(1.02);
-            box-shadow: 0 40px 80px rgba(0,0,0,0.8);
-        }
-
-        .poster-display img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .info-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            padding: 50px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
-        }
-
-        .info-item {
-            margin-bottom: 30px;
-            border-left: 2px solid var(--text-gold);
-            padding-left: 20px;
-        }
-
-        .info-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .info-label {
-            font-family: 'Cinzel', serif;
-            color: var(--text-gold);
-            font-size: 0.9rem;
-            letter-spacing: 0.1em;
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .info-text {
-            font-size: 1.1rem;
-            font-weight: 300;
-            color: #fff;
-        }
-
-        .info-subtext {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.6);
-            margin-top: 5px;
-            display: block;
-        }
-
-        /* 地圖連結樣式 */
-        .map-link {
-            text-decoration: none;
-            color: inherit;
-            display: block; /* 讓整個區塊可點擊 */
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .map-link:hover .info-text {
-            color: var(--text-gold);
-            text-shadow: 0 0 10px rgba(224, 211, 184, 0.6);
-        }
-
-        .map-link:hover .info-subtext {
-            color: rgba(255,255,255,0.9);
-        }
-
-        .map-pin-icon {
-            display: inline-block;
-            margin-left: 5px;
-            font-style: normal;
-            opacity: 0.7;
-            transition: all 0.3s ease;
-        }
-
-        .map-link:hover .map-pin-icon {
-            opacity: 1;
-            transform: translateY(-3px); /* 小小的跳動效果 */
-        }
-
-
-        /* 裝飾圓環 */
-        .circle-deco {
+        .bird-trail {
             position: absolute;
             top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 70vw;
-            height: 70vw;
-            border: 1px solid rgba(224, 211, 184, 0.08);
-            border-radius: 50%;
-            z-index: -5;
-            pointer-events: none;
+            left: -10%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(224, 211, 184, 0.8), transparent);
+            width: 200px;
+            animation: trailFollow 3.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+        }
+
+        .intro-text {
+            font-family: 'Cinzel', serif;
+            color: var(--text-gold);
+            font-size: 1.5rem;
+            opacity: 0;
+            position: absolute;
+            text-align: center;
+            letter-spacing: 0.2em;
+        }
+
+        .text-1 { top: 60%; animation: showText 1s ease-out 0.5s forwards, hideText 0.5s ease-in 1.8s forwards; }
+        .text-2 { top: 60%; animation: showText 1s ease-out 2.2s forwards; }
+
+        @keyframes flyAcross {
+            0% { left: -10%; transform: scale(0.5) rotate(15deg); }
+            50% { transform: scale(1) rotate(0deg); }
+            100% { left: 110%; transform: scale(0.8) rotate(-10deg); }
+        }
+
+        @keyframes trailFollow {
+            0% { left: -15%; opacity: 0; }
+            10% { opacity: 1; }
+            100% { left: 105%; opacity: 0; }
+        }
+
+        @keyframes showText { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes hideText { from { opacity: 1; } to { opacity: 0; transform: translateY(-20px); } }
+        
+        @keyframes finishIntro {
+            to { opacity: 0; visibility: hidden; }
+        }
+
+        /* ====================
+           主頁面 (原本的高質感內容)
+        ==================== */
+        .background-wrapper {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: -10;
+            background: radial-gradient(circle at center, #1a4a5e 0%, #06121a 100%);
+        }
+        .texture-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('poster.jpg'); background-size: cover; background-position: center;
+            opacity: 0.15; filter: blur(10px) saturate(1.2); z-index: -9;
+        }
+        .spotlight-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+            z-index: -8; pointer-events: none; transition: background 0.1s ease;
+        }
+        .circle-deco {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 70vw; height: 70vw; border: 1px solid rgba(224, 211, 184, 0.08);
+            border-radius: 50%; z-index: -5; pointer-events: none;
             animation: rotateCircle 60s linear infinite;
         }
 
-        @keyframes rotateCircle {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
+        /* 內容容器 - 延遲顯示，等開場跑完 */
+        .container {
+            max-width: 1200px; margin: 0 auto; padding: 40px 20px;
+            min-height: 100vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            position: relative; z-index: 1;
+            opacity: 0;
+            animation: pageFadeIn 2s ease-out 3.5s forwards; /* 3.5秒後才出現 */
         }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes pageFadeIn { to { opacity: 1; } }
 
-        /* RWD */
+        header { text-align: center; margin-bottom: 60px; }
+        h1 { font-family: 'Cinzel', serif; font-size: 4rem; letter-spacing: 0.15em; color: var(--text-white); text-shadow: 0 0 30px rgba(255,255,255,0.4); }
+        h2 { font-family: 'Cinzel', serif; font-size: 1.5rem; letter-spacing: 0.3em; color: var(--text-gold); border-bottom: 1px solid rgba(224, 211, 184, 0.3); padding-bottom: 10px; display: inline-block; margin-bottom: 30px;}
+        .chinese-title { font-family: 'Noto Serif TC', serif; font-size: 2rem; letter-spacing: 0.5em; margin-top: 10px; display: block; font-weight: 300; }
+        .artist-name { font-size: 1.1rem; letter-spacing: 0.2em; margin-top: 15px; opacity: 0.8; }
+
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; width: 100%; align-items: center; }
+        
+        .poster-display {
+            position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.6); border-radius: 4px; overflow: hidden;
+            transition: transform 0.5s ease;
+        }
+        .poster-display:hover { transform: translateY(-15px) scale(1.02); }
+        .poster-display img { width: 100%; height: auto; display: block; }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 50px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        .info-item { margin-bottom: 30px; border-left: 2px solid var(--text-gold); padding-left: 20px; }
+        .info-label { font-family: 'Cinzel', serif; color: var(--text-gold); font-size: 0.9rem; letter-spacing: 0.1em; margin-bottom: 8px; display: block; }
+        .info-text { font-size: 1.1rem; font-weight: 300; color: #fff; }
+        .info-subtext { font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-top: 5px; display: block; }
+
+        .map-link { text-decoration: none; color: inherit; display: block; transition: all 0.3s ease; }
+        .map-link:hover .info-text { color: var(--text-gold); text-shadow: 0 0 10px rgba(224, 211, 184, 0.6); }
+        .map-pin-icon { display: inline-block; margin-left: 5px; font-style: normal; }
+
+        footer { margin-top: auto; padding: 20px; text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.4); width: 100%; }
+
+        @keyframes rotateCircle { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
         @media (max-width: 900px) {
             .content-grid { grid-template-columns: 1fr; gap: 40px; }
             h1 { font-size: 2.5rem; }
-            .chinese-title { font-size: 1.5rem; }
             .container { padding-top: 80px; justify-content: flex-start; }
-            .poster-display { max-width: 80%; margin: 0 auto; }
-        }
-
-        footer {
-            margin-top: auto;
-            padding: 20px;
-            text-align: center;
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.4);
-            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <!-- 背景與特效層容器 -->
-    <div class="background-wrapper">
-        <!-- 紋理層 -->
-        <div class="texture-overlay"></div>
-        <!-- 滑鼠光暈層 -->
-        <div class="spotlight-overlay"></div>
-        <!-- 漂浮粒子層 -->
-        <div class="particles-container">
-            <div class="particle p1"></div>
-            <div class="particle p2"></div>
-            <div class="particle p3"></div>
-            <div class="particle p4"></div>
-            <div class="particle p5"></div>
-            <div class="particle p6"></div>
-            <div class="particle p7"></div>
+    <!-- 開場動畫層 -->
+    <div id="intro-layer">
+        <div class="flight-path">
+            <div class="bird-trail"></div>
+            <div class="bird-shape"></div> <!-- 飛行的金色鸚鵡 -->
         </div>
+        <div class="intro-text text-1">From Taiwan...</div>
+        <div class="intro-text text-2">To Italy</div>
     </div>
-    
-    <!-- 裝飾大圓圈 -->
+
+    <!-- 主頁面 -->
+    <div class="background-wrapper">
+        <div class="texture-overlay"></div>
+        <div class="spotlight-overlay"></div>
+    </div>
     <div class="circle-deco"></div>
 
     <div class="container">
@@ -382,7 +222,6 @@
                     <span class="info-label">Date / 展覽日期</span>
                     <div class="info-text">2025.12.05 — 2026.01.16</div>
                     <span class="info-subtext">Tue - Sat | 11:00 - 19:00</span>
-                    <span class="info-subtext">Sun & Mon | Closed</span>
                 </div>
 
                 <div class="info-item">
@@ -390,10 +229,9 @@
                     <div class="info-text">2025.12.05 (Fri) 19:00</div>
                 </div>
 
-                <!-- 這裡加入了連結功能 -->
                 <div class="info-item">
                     <span class="info-label">Location / 展覽地點</span>
-                    <a href="https://www.google.com/maps/search/?api=1&query=Design+Sulmondo+Gallery+Via+Chiatamone+26+Napoli" target="_blank" class="map-link" title="Open in Google Maps">
+                    <a href="https://www.google.com/maps/search/?api=1&query=Design+Sulmondo+Gallery+Via+Chiatamone+26+Napoli" target="_blank" class="map-link">
                         <div class="info-text">Design Sulmondo Gallery</div>
                         <span class="info-subtext">Via Chiatamone 26, Napoli <i class="map-pin-icon">📍</i></span>
                     </a>
@@ -407,17 +245,17 @@
     </div>
 
     <script>
-        // 用於追蹤滑鼠位置的 Script
         document.addEventListener('mousemove', (e) => {
-            // 計算滑鼠在視窗中的百分比位置
             const x = e.clientX / window.innerWidth * 100;
             const y = e.clientY / window.innerHeight * 100;
-            
-            // 將位置數據更新到 CSS 變數中
             document.documentElement.style.setProperty('--mouse-x', x + '%');
             document.documentElement.style.setProperty('--mouse-y', y + '%');
         });
-    </script>
 
+        // 動畫結束後恢復捲動
+        setTimeout(() => {
+            document.body.style.overflowY = 'auto';
+        }, 4500);
+    </script>
 </body>
 </html>
