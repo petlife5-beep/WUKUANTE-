@@ -12,82 +12,102 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%; /* 使用 100% 而非 100vh 以避免移動端導覽列跳動問題 */
+            height: 100%;
             background-color: #000508;
-            overflow: hidden;
+            overflow: hidden; /* 禁止捲動 */
             font-family: 'Montserrat', sans-serif;
-            touch-action: none; /* 禁止預設的雙指縮放與滾動 */
-            position: fixed; /* 強制固定視窗，防止 iOS 彈性滾動 */
+            touch-action: none; /* 禁止手機雙指縮放 */
         }
 
         #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            z-index: 1; /* 畫布在最底層 */
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* UI Controls */
+        /* UI Controls - 使用 Fixed 確保在任何裝置都在視窗內 */
         .controls {
-            position: absolute;
-            bottom: 30px; /* 提高底部距離，避開手機手勢條 */
+            position: fixed; 
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 20, 30, 0.85);
-            padding: 12px 20px;
+            padding: 12px 24px;
             border-radius: 40px;
             display: flex;
-            gap: 15px;
-            backdrop-filter: blur(8px);
-            z-index: 100;
-            border: 1px solid rgba(128, 203, 196, 0.2);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            gap: 20px;
+            backdrop-filter: blur(10px);
+            z-index: 999; /* 確保介面在最上層 */
+            border: 1px solid rgba(128, 203, 196, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             white-space: nowrap;
+            transition: opacity 0.3s;
+        }
+        
+        /* 閒置時半透明，避免干擾畫面（可選） */
+        body:not(:hover) .controls {
+            opacity: 0.8;
+        }
+        .controls:hover {
+            opacity: 1 !important;
         }
 
         .btn {
             background: transparent;
             color: #80cbc4;
             border: 1px solid #80cbc4;
-            padding: 8px 16px;
-            font-size: 0.85rem;
+            padding: 10px 20px;
+            font-size: 0.9rem;
             cursor: pointer;
             border-radius: 25px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            outline: none;
+            user-select: none;
         }
         
         .btn:hover {
-            background: rgba(128, 203, 196, 0.15);
+            background: rgba(128, 203, 196, 0.2);
+            box-shadow: 0 0 15px rgba(128, 203, 196, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
         }
 
         input[type="file"] { display: none; }
         
         #loading {
-            position: absolute;
+            position: fixed;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #80cbc4;
             display: none;
             letter-spacing: 2px;
-            z-index: 200;
+            z-index: 1000;
             text-align: center;
-            font-size: 0.9rem;
-            line-height: 1.6;
+            font-size: 1rem;
             pointer-events: none;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
         }
 
         /* Info Panel Button */
         #info-toggle {
-            position: absolute;
-            top: 20px; /* 避開狀態列 */
-            right: 20px;
-            z-index: 110;
-            width: 40px;
-            height: 40px;
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            z-index: 1000;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             border: 1px solid rgba(128, 203, 196, 0.5);
             background: rgba(0, 20, 30, 0.7);
@@ -99,55 +119,79 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        #info-toggle:hover {
+            background: #80cbc4;
+            color: #000508;
+            transform: rotate(90deg);
         }
 
         /* Info Panel */
         #info-panel {
-            position: absolute;
+            position: fixed;
             top: 0; right: 0;
-            width: 100%; max-width: 320px;
+            width: 100%; max-width: 360px;
             height: 100%;
-            background: rgba(2, 17, 27, 0.95);
-            backdrop-filter: blur(15px);
+            background: rgba(2, 17, 27, 0.96);
+            backdrop-filter: blur(20px);
             transform: translateX(100%);
-            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            z-index: 105;
-            padding: 80px 30px 30px 30px;
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            z-index: 998; /* 略低於按鈕 */
+            padding: 90px 40px 40px 40px;
             box-sizing: border-box;
             overflow-y: auto;
             border-left: 1px solid rgba(128, 203, 196, 0.1);
             color: #e0f7fa;
+            box-shadow: -20px 0 50px rgba(0,0,0,0.5);
         }
 
         #info-panel.active { transform: translateX(0); }
 
-        .info-title h1 { font-size: 1.8rem; margin: 0 0 0.5rem 0; color: #fff; }
-        .info-title h2 { font-size: 0.9rem; margin: 0 0 2rem 0; color: #80cbc4; }
-        .info-section { margin-bottom: 1.5rem; }
-        .info-label { font-size: 0.75rem; color: #80cbc4; opacity: 0.8; display: block; margin-bottom: 0.3rem;}
-        .info-text { font-size: 0.9rem; line-height: 1.5; color: #b2dfdb; }
-        .highlight { color: #fff; font-weight: 500; }
+        .info-title h1 { font-size: 2rem; margin: 0 0 0.5rem 0; color: #fff; font-weight: 200; letter-spacing: 1px; }
+        .info-title h2 { font-size: 0.95rem; margin: 0 0 2.5rem 0; color: #80cbc4; font-weight: 400; letter-spacing: 0.5px; }
+        .info-section { margin-bottom: 2rem; }
+        .info-label { font-size: 0.75rem; color: #5a8f89; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.5rem; display: block;}
+        .info-text { font-size: 1rem; line-height: 1.6; color: #b2dfdb; font-weight: 300; }
+        .highlight { color: #fff; font-weight: 500; border-bottom: 1px solid rgba(128, 203, 196, 0.3); padding-bottom: 2px; }
 
         /* Icons */
-        .icon-upload::before { content: '↑'; }
-        .icon-sound::before { content: '♪'; }
+        .icon-upload::before { content: '↑'; font-family: monospace; font-weight: bold;}
+        .icon-sound::before { content: '♪'; font-family: monospace;}
 
-        @media (max-width: 480px) {
-            .controls { padding: 10px 15px; gap: 10px; bottom: 40px;}
-            .btn { padding: 8px 12px; font-size: 0.8rem; }
+        /* Mobile Specific Adjustments */
+        @media (max-width: 768px) {
+            .controls { 
+                bottom: 30px; 
+                width: 85%; 
+                justify-content: center; 
+                padding: 10px;
+                gap: 10px;
+            }
+            .btn { 
+                padding: 8px 15px; 
+                font-size: 0.85rem; 
+                flex: 1; 
+                justify-content: center;
+            }
+            #info-toggle { top: 20px; right: 20px; }
+            .info-title h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
 
-    <div id="loading">LOADING...</div>
+    <div id="loading">讀取中...</div>
 
     <div id="canvas-container">
         <canvas id="mainCanvas"></canvas>
     </div>
 
-    <button id="info-toggle">i</button>
+    <!-- 右上角資訊按鈕 -->
+    <button id="info-toggle" title="展覽資訊">i</button>
 
+    <!-- 滑出式資訊面板 -->
     <div id="info-panel">
         <div class="info-title">
             <h1>Altróve</h1>
@@ -169,8 +213,12 @@
                 Via Chiatamone 26, Napoli
             </div>
         </div>
+        <div class="info-section" style="margin-top: 40px; opacity: 0.5; font-size: 0.8rem;">
+            點擊任意處關閉資訊
+        </div>
     </div>
 
+    <!-- 底部控制列 -->
     <div class="controls">
         <label for="upload" class="btn icon-upload">更換 DM</label>
         <input type="file" id="upload" accept="image/*">
@@ -179,7 +227,7 @@
 
     <script>
         const canvas = document.getElementById('mainCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false });
+        const ctx = canvas.getContext('2d', { alpha: false }); // 關閉透明度以提升效能
         const loading = document.getElementById('loading');
         const infoToggle = document.getElementById('info-toggle');
         const infoPanel = document.getElementById('info-panel');
@@ -190,11 +238,11 @@
         let mouse = { x: null, y: null };
         let isMobile = window.innerWidth < 768;
 
-        // Sound System
+        // --- 音效系統 ---
         let audioCtx = null;
         let isSoundEnabled = true;
         let lastSoundTime = 0;
-        const soundCooldown = 80;
+        const soundCooldown = 80; // 毫秒 (避免聲音太密集)
 
         function initAudio() {
             if (audioCtx) return;
@@ -208,17 +256,22 @@
             const now = Date.now();
             if (now - lastSoundTime < soundCooldown) return;
             
+            // 合成一個清脆的水滴/氣泡聲
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
+            
+            // 頻率隨機變化增加自然感
             osc.frequency.setValueAtTime(300 + Math.random()*200, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.12);
+            
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // 音量小一點
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.1);
+            osc.stop(audioCtx.currentTime + 0.12);
             lastSoundTime = now;
         }
 
@@ -233,16 +286,22 @@
         canvas.addEventListener('click', initAudio);
         canvas.addEventListener('touchstart', initAudio, {passive: true});
 
-        // Info Panel
+        // --- 資訊面板邏輯 ---
         infoToggle.addEventListener('click', () => infoPanel.classList.toggle('active'));
+        
+        // 點擊面板外或面板本身關閉
         infoPanel.addEventListener('click', (e) => {
-            if(e.target === infoPanel) infoPanel.classList.remove('active');
+            // 如果點選的不是文字選取區，則關閉
+            const selection = window.getSelection();
+            if(selection.toString().length === 0) {
+                 infoPanel.classList.remove('active');
+            }
         });
 
-        // --- Improved Particle System ---
+        // --- 粒子與畫面邏輯 ---
         
-        // Config
-        const cols = isMobile ? 12 : 20; // 減少欄數以增加粒子尺寸，提高效能
+        // 設定參數
+        const cols = isMobile ? 12 : 24; // 電腦版增加細緻度
         const pushStrength = isMobile ? 20 : 30;
         const returnSpeed = 0.15;
 
@@ -254,17 +313,16 @@
                 this.sX = sX; this.sY = sY; this.sW = sW; this.sH = sH;
             }
             draw() {
-                // 使用 drawImage 確保高畫質，size+0.5 是為了消除縫隙
+                // size + 0.5 防止縫隙
                 ctx.drawImage(imgObj, this.sX, this.sY, this.sW, this.sH, this.x, this.y, this.size + 0.5, this.size + 0.5);
             }
             update() {
                 let dx = 0, dy = 0;
-                // 簡單的滑鼠互動邏輯
+                // 互動邏輯
                 if (mouse.x !== null) {
                     let mx = mouse.x - (this.x + this.size/2);
                     let my = mouse.y - (this.y + this.size/2);
                     let dSq = mx*mx + my*my;
-                    // 增加互動半徑
                     let radSq = isMobile ? 8000 : 15000;
                     
                     if (dSq < radSq) {
@@ -275,7 +333,7 @@
                         dy -= Math.sin(ang) * force * pushStrength;
                     }
                 }
-                // 回歸原位
+                // 彈性回歸
                 dx += (this.baseX - this.x) * returnSpeed;
                 dy += (this.baseY - this.y) * returnSpeed;
                 this.x += dx;
@@ -284,22 +342,20 @@
         }
 
         function resize() {
-            // 使用 documentElement.clientWidth 獲得更精確的手機寬度
-            canvas.width = document.documentElement.clientWidth || window.innerWidth;
-            canvas.height = document.documentElement.clientHeight || window.innerHeight;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
             isMobile = canvas.width < 768;
             if(imgObj) initParticles();
         }
         
-        // 監聽螢幕旋轉與調整大小
         window.addEventListener('resize', resize);
-        window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
-        // Input Listeners
+        // 輸入事件監聽
         const setMouse = (x, y) => {
             mouse.x = x; mouse.y = y;
             playSound();
         };
+        
         canvas.addEventListener('mousemove', e => setMouse(e.clientX, e.clientY));
         canvas.addEventListener('touchmove', e => {
             e.preventDefault();
@@ -314,11 +370,10 @@
             if(!imgObj) return;
             particles = [];
             
-            // *** 關鍵修正：手機版強制縮小比例 (Safe Padding) ***
-            // 電腦版留 90% 畫面，手機版只留 80% 畫面，確保不會切邊
+            // 安全邊距：手機留白多一點避免切邊
             const margin = isMobile ? 0.80 : 0.90;
             
-            // 計算縮放比例：同時檢查寬度和高度，取最小值 (Contain)
+            // 強制縮放 (Contain 模式)
             const scale = Math.min(
                 (canvas.width * margin) / imgObj.width, 
                 (canvas.height * margin) / imgObj.height
@@ -327,21 +382,21 @@
             const drawW = imgObj.width * scale;
             const drawH = imgObj.height * scale;
             
-            // 絕對置中
             const startX = (canvas.width - drawW) / 2;
             const startY = (canvas.height - drawH) / 2;
 
-            const tileSize = drawW / cols;
+            // 根據裝置決定切割細度
+            const currentCols = isMobile ? 12 : 24;
+            const tileSize = drawW / currentCols;
             const rows = Math.ceil(drawH / tileSize);
 
             for(let r=0; r<rows; r++) {
-                for(let c=0; c<cols; c++) {
-                    const sX = c * (imgObj.width / cols);
-                    const sY = r * (imgObj.width / cols); // Source 是正方形切分
-                    const sW = imgObj.width / cols;
+                for(let c=0; c<currentCols; c++) {
+                    const sX = c * (imgObj.width / currentCols);
+                    const sY = r * (imgObj.width / currentCols);
+                    const sW = imgObj.width / currentCols;
                     const sH = sW;
                     
-                    // 確保不超出圖片範圍
                     if(sY + sH/2 < imgObj.height) {
                         particles.push(new Tile(
                             startX + c*tileSize,
@@ -364,11 +419,11 @@
             requestAnimationFrame(animate);
         }
 
-        // Load Image
+        // 載入圖片邏輯
         function loadDefault() {
             loading.style.display = 'block';
             const img = new Image();
-            // 讀取同層目錄的 poster.jpg
+            // 這裡設定為相對路徑，請確保 poster.jpg 在同層目錄
             img.src = "./poster.jpg";
             img.onload = () => {
                 loading.style.display = 'none';
@@ -378,7 +433,7 @@
             };
             img.onerror = () => {
                 loading.style.display = 'block';
-                loading.innerHTML = "未偵測到預設圖片<br>請點擊下方按鈕上傳";
+                loading.innerHTML = "未偵測到預設圖片<br><span style='font-size:0.8em; opacity:0.7'>(請確認 poster.jpg 位於同目錄)</span><br><br>請點擊下方按鈕手動上傳";
             };
         }
 
@@ -386,6 +441,7 @@
             const f = e.target.files[0];
             if(!f) return;
             loading.style.display = 'block';
+            loading.innerHTML = "處理中...";
             const r = new FileReader();
             r.onload = (ev) => {
                 const img = new Image();
@@ -399,7 +455,7 @@
             r.readAsDataURL(f);
         });
 
-        // Start
+        // 啟動
         loadDefault();
 
     </script>
