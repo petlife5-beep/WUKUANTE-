@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Altróve - Liquid Mosaic Interaction</title>
+    <title>Altróve - High Res Particle View</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&display=swap');
 
@@ -13,14 +12,13 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #02111b; /* Dark Deep Blue */
+            background-color: #000508;
             overflow: hidden;
             font-family: 'Montserrat', sans-serif;
-            touch-action: none; /* Prevent scrolling on mobile */
+            touch-action: none;
         }
 
         #canvas-container {
-            position: relative;
             width: 100%;
             height: 100%;
             display: flex;
@@ -29,421 +27,297 @@
         }
 
         canvas {
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
 
-        /* Controls UI */
-        .ui-layer {
+        /* UI Controls */
+        .controls {
             position: absolute;
             bottom: 30px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            pointer-events: none; /* Let clicks pass through */
-            z-index: 10;
-        }
-
-        .controls {
-            background: rgba(2, 17, 27, 0.85);
-            padding: 15px 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 20px;
             border-radius: 30px;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(128, 203, 196, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
-            flex-direction: column;
+            gap: 15px;
             align-items: center;
-            pointer-events: auto;
-            gap: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 100;
         }
 
         .btn {
-            background: rgba(128, 203, 196, 0.1);
-            color: #80cbc4;
-            border: 1px solid #80cbc4;
-            padding: 10px 24px;
-            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.85rem;
             cursor: pointer;
             border-radius: 20px;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: 0.3s;
+            white-space: nowrap;
         }
 
-        .btn:hover, .btn:active {
-            background: #80cbc4;
-            color: #00251a;
-            box-shadow: 0 0 15px rgba(128, 203, 196, 0.4);
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
-        input[type="file"] {
-            display: none;
-        }
+        input[type="file"] { display: none; }
 
         .hint {
-            color: #b2dfdb;
-            font-size: 0.8rem;
-            opacity: 0.8;
-            margin-bottom: 5px;
-        }
-
-        /* Loading Spinner */
-        #loader {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(128, 203, 196, 0.3);
-            border-radius: 50%;
-            border-top-color: #80cbc4;
-            animation: spin 1s ease-in-out infinite;
-            display: none;
-            z-index: 20;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+            pointer-events: none;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
-
-        @keyframes spin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        /* Icon simulation */
-        .icon-upload::before { content: '↑'; font-weight: bold; }
-        .icon-reset::before { content: '↻'; font-weight: bold; }
-
     </style>
 </head>
 <body>
 
+    <div class="hint">Touch to Interact · Upload DM</div>
+
     <div id="canvas-container">
         <canvas id="mainCanvas"></canvas>
     </div>
-    
-    <div id="loader"></div>
 
-    <div class="ui-layer">
-        <div class="controls">
-            <div class="hint">為獲得最佳效果，請上傳您的 DM 圖片</div>
-            <div style="display: flex; gap: 15px;">
-                <label for="fileInput" class="btn icon-upload">上傳圖片</label>
-                <input type="file" id="fileInput" accept="image/*">
-                <button id="resetBtn" class="btn icon-reset">重置展示</button>
-            </div>
-        </div>
+    <div class="controls">
+        <label for="upload" class="btn">📷 上傳 DM</label>
+        <input type="file" id="upload" accept="image/*">
+        <button id="reset" class="btn">↺ 重置</button>
     </div>
 
     <script>
-        /**
-         * System Configuration
-         * Balanced for high performance on mobile and clarity.
-         */
-        const config = {
-            tileSize: 12,    // Size of each grid cell (smaller = more detail, slower)
-            spacing: 0,      // 0 = Seamless image (Crucial for readability)
-            friction: 0.92,  // How fast particles slow down
-            ease: 0.15,      // How fast they return to origin
-            mouseRadius: 20000, // Interaction strength (squared)
-            scatterForce: 40 // How far they fly
-        };
-
         const canvas = document.getElementById('mainCanvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const loader = document.getElementById('loader');
+        const ctx = canvas.getContext('2d');
         
-        let width, height;
+        // System Config
         let particles = [];
-        let ambientParticles = [];
-        let imageObj = null;
+        let imgObj = null;
+        let isInteracting = false;
         
-        // Mouse State
-        let mouse = { x: undefined, y: undefined, isActive: false };
+        // Interaction Point
+        const mouse = { x: 0, y: 0, radius: 100 };
 
-        // Handle Resize
-        function resizeCanvas() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
-            if (imageObj) initParticles(imageObj);
+        // Resize Logic
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if(imgObj) initParticles();
         }
-        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('resize', resize);
 
         // Interaction Listeners
         window.addEventListener('mousemove', e => {
-            mouse.x = e.x;
-            mouse.y = e.y;
-            mouse.isActive = true;
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            isInteracting = true;
         });
-        
         window.addEventListener('touchmove', e => {
             e.preventDefault();
             mouse.x = e.touches[0].clientX;
             mouse.y = e.touches[0].clientY;
-            mouse.isActive = true;
+            isInteracting = true;
         }, { passive: false });
-
-        window.addEventListener('touchend', () => { mouse.isActive = false; mouse.x = undefined; });
-        window.addEventListener('mouseout', () => { mouse.isActive = false; mouse.x = undefined; });
+        
+        window.addEventListener('touchend', () => isInteracting = false);
+        window.addEventListener('mouseout', () => isInteracting = false);
 
         /**
-         * PARTICLE CLASS
-         * Represents a square slice of the image.
+         * TEXTURE PARTICLE
+         * Instead of a solid color, this particle draws a piece of the image.
          */
-        class Tile {
-            constructor(x, y, color, size) {
-                this.originX = x;
-                this.originY = y;
-                this.x = x; // Current position
+        class PuzzlePiece {
+            constructor(x, y, size, imgX, imgY, imgW, imgH) {
+                this.baseX = x;     // Resting screen position
+                this.baseY = y;
+                this.x = x;         // Current position
                 this.y = y;
-                this.color = color;
                 
-                // Slightly overlap to prevent black lines (The "Gapless" trick)
-                this.w = size + 0.6; 
-                this.h = size + 0.6;
+                // Texture Coordinates (Where on the source image to cut from)
+                this.tx = imgX;
+                this.ty = imgY;
+                this.tw = imgW;
+                this.th = imgH;
                 
-                this.vx = 0;
-                this.vy = 0;
+                this.size = size;
+                this.density = (Math.random() * 30) + 1; // Different weight for each piece
                 this.angle = 0;
-                this.va = 0; // Velocity angle
-            }
-
-            update() {
-                // Physics to return to origin
-                const dx = this.originX - this.x;
-                const dy = this.originY - this.y;
-                
-                // Move towards origin
-                this.vx += dx * config.ease;
-                this.vy += dy * config.ease;
-                
-                // Mouse Interaction
-                if (mouse.isActive && mouse.x !== undefined) {
-                    const dxMouse = mouse.x - this.x;
-                    const dyMouse = mouse.y - this.y;
-                    const distSq = dxMouse * dxMouse + dyMouse * dyMouse;
-
-                    if (distSq < config.mouseRadius) {
-                        const dist = Math.sqrt(distSq);
-                        const force = (Math.sqrt(config.mouseRadius) - dist) / Math.sqrt(config.mouseRadius);
-                        const angle = Math.atan2(dyMouse, dxMouse);
-                        
-                        // Push away
-                        const pushX = Math.cos(angle) * force * config.scatterForce;
-                        const pushY = Math.sin(angle) * force * config.scatterForce;
-                        
-                        this.vx -= pushX;
-                        this.vy -= pushY;
-                        
-                        // Add some rotation for the "broken glass" effect
-                        this.va += (Math.random() - 0.5) * 0.2 * force;
-                    }
-                }
-
-                // Friction (dampening)
-                this.vx *= config.friction;
-                this.vy *= config.friction;
-                this.va *= 0.9;
-
-                this.x += this.vx;
-                this.y += this.vy;
-                this.angle += this.va;
-                
-                // Reset angle slowly
-                this.angle *= 0.9;
             }
 
             draw() {
                 ctx.save();
-                ctx.translate(this.x + this.w/2, this.y + this.h/2);
+                ctx.translate(this.x + this.size/2, this.y + this.size/2);
                 ctx.rotate(this.angle);
-                ctx.fillStyle = this.color;
-                // Draw rectangle centered at position
-                ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+                // The Magic: DrawImage instead of FillRect
+                // This ensures full resolution inside the particle
+                ctx.drawImage(
+                    imgObj, 
+                    this.tx, this.ty, this.tw, this.th, // Source Crop
+                    -this.size/2, -this.size/2, this.size, this.size // Dest Draw
+                );
                 ctx.restore();
-            }
-        }
-
-        /**
-         * AMBIENT PARTICLE (The "Atmosphere")
-         * These float ON TOP of the image to give the art feel,
-         * without being part of the text readability.
-         */
-        class Floater {
-            constructor() {
-                this.reset();
-                this.y = Math.random() * height; // Start anywhere vertically
-            }
-            
-            reset() {
-                this.x = Math.random() * width;
-                this.y = height + 10;
-                this.speed = Math.random() * 1 + 0.5;
-                this.size = Math.random() * 2;
-                this.opacity = Math.random() * 0.5 + 0.1;
             }
 
             update() {
-                this.y -= this.speed;
-                if(this.y < -10) this.reset();
-            }
-
-            draw() {
-                ctx.fillStyle = `rgba(200, 255, 230, ${this.opacity})`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-                ctx.fill();
-            }
-        }
-
-        /**
-         * INITIALIZATION
-         * Reads image data and creates tiles.
-         */
-        function initParticles(img) {
-            loader.style.display = 'block';
-            
-            // Wait a frame to allow UI to update
-            setTimeout(() => {
-                particles = [];
-                ambientParticles = [];
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                let forceDirectionX = dx / distance;
+                let forceDirectionY = dy / distance;
                 
-                // 1. Calculate proper scaling to fit screen 'contain' style
-                const scale = Math.min(width / img.width, height / img.height) * 0.85; // 0.85 for some padding
-                const drawW = img.width * scale;
-                const drawH = img.height * scale;
-                const startX = (width - drawW) / 2;
-                const startY = (height - drawH) / 2;
+                // Physics: Repel radius
+                const maxDist = 120;
+                let force = (maxDist - distance) / maxDist;
+                let directionX = forceDirectionX * force * this.density;
+                let directionY = forceDirectionY * force * this.density;
 
-                // 2. Draw to offscreen canvas to get pixel data
-                const tmpCanvas = document.createElement('canvas');
-                const tmpCtx = tmpCanvas.getContext('2d');
-                tmpCanvas.width = width;
-                tmpCanvas.height = height;
-                tmpCtx.drawImage(img, startX, startY, drawW, drawH);
-                
-                // 3. Scan pixels
-                const step = config.tileSize;
-                const imgData = tmpCtx.getImageData(0, 0, width, height).data;
-
-                for (let y = startY; y < startY + drawH; y += step) {
-                    for (let x = startX; x < startX + drawW; x += step) {
-                        // Sample the center pixel of the grid cell
-                        const index = ((Math.floor(y) * width) + Math.floor(x)) * 4;
-                        const r = imgData[index];
-                        const g = imgData[index + 1];
-                        const b = imgData[index + 2];
-                        const a = imgData[index + 3];
-
-                        if (a > 128) { // Skip transparent
-                            const color = `rgb(${r},${g},${b})`;
-                            particles.push(new Tile(x, y, color, step));
-                        }
+                if (isInteracting && distance < maxDist) {
+                    this.x -= directionX * 2; // Push away strength
+                    this.y -= directionY * 2;
+                    this.angle = force * 0.5; // Rotate slightly when pushed
+                } else {
+                    // Return to origin (Snap back)
+                    if (this.x !== this.baseX) {
+                        let dx = this.x - this.baseX;
+                        this.x -= dx / 10; // Ease factor
+                    }
+                    if (this.y !== this.baseY) {
+                        let dy = this.y - this.baseY;
+                        this.y -= dy / 10;
+                    }
+                    // Reset rotation
+                    if (this.angle !== 0) {
+                        this.angle -= this.angle / 10;
                     }
                 }
-
-                // 4. Create atmospheric particles
-                for(let i=0; i<80; i++) {
-                    ambientParticles.push(new Floater());
-                }
-
-                loader.style.display = 'none';
-            }, 50);
+            }
         }
 
-        /**
-         * ANIMATION LOOP
-         */
-        function animate() {
-            // Clear with dark blue background (Matches the poster vibe)
-            ctx.fillStyle = '#02111b'; 
-            ctx.fillRect(0, 0, width, height);
+        function initParticles() {
+            particles = [];
             
-            // 1. Draw Image Tiles
-            particles.forEach(p => {
-                p.update();
-                p.draw();
-            });
+            // 1. Fit Image to Screen (Contain)
+            // Use a slight margin so it looks like a poster
+            const margin = 0.9;
+            const scale = Math.min(canvas.width / imgObj.width, canvas.height / imgObj.height) * margin;
+            
+            const displayW = imgObj.width * scale;
+            const displayH = imgObj.height * scale;
+            const startX = (canvas.width - displayW) / 2;
+            const startY = (canvas.height - displayH) / 2;
 
-            // 2. Draw Floating Atmosphere (Top Layer)
-            ambientParticles.forEach(ap => {
-                ap.update();
-                ap.draw();
-            });
+            // 2. Determine Grid Size
+            // Mobile needs fewer particles for 60fps, Desktop can handle more.
+            // But since we use drawImage, we can use LARGER tiles without losing quality!
+            // Let's use ~25 columns.
+            const cols = 25; 
+            const tileSize = displayW / cols;
+            const rows = Math.ceil(displayH / tileSize);
 
+            // 3. Create Particles
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = startX + c * tileSize;
+                    const y = startY + r * tileSize;
+                    
+                    // Source Image Mapping
+                    // We need to cut exactly the corresponding piece from the original high-res image
+                    const srcX = c * (imgObj.width / cols);
+                    const srcY = r * (imgObj.width / cols); // Assuming square tiles in source logic
+                    const srcW = imgObj.width / cols;
+                    const srcH = srcW; // Keep aspect logic simple
+                    
+                    // More precise mapping to avoid drift
+                    const sX = c * (imgObj.width / cols);
+                    const sY = r * (imgObj.height / rows);
+                    const sW = imgObj.width / cols;
+                    const sH = imgObj.height / rows;
+
+                    // Only add if within bounds
+                    if(sY < imgObj.height) {
+                        particles.push(new PuzzlePiece(x, y, tileSize, sX, sY, sW, sH));
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw particles
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
             requestAnimationFrame(animate);
         }
 
-        /**
-         * UI & FILE HANDLING
-         */
+        // --- Init Logic ---
         
-        // 1. Create a default "Demo" visual
-        function createDemoVisual() {
-            const tempCanvas = document.createElement('canvas');
-            const tCtx = tempCanvas.getContext('2d');
-            tempCanvas.width = 600;
-            tempCanvas.height = 800;
+        // Default Image Generator (for demo)
+        function createDefaultImage() {
+            const tCan = document.createElement('canvas');
+            const tCtx = tCan.getContext('2d');
+            tCan.width = 600;
+            tCan.height = 800;
             
-            // Background
+            // Deep Blue gradient
             const grd = tCtx.createLinearGradient(0,0,0,800);
-            grd.addColorStop(0, '#001');
-            grd.addColorStop(1, '#023');
+            grd.addColorStop(0, '#002');
+            grd.addColorStop(1, '#057');
             tCtx.fillStyle = grd;
             tCtx.fillRect(0,0,600,800);
             
             // Text
             tCtx.fillStyle = 'white';
+            tCtx.font = 'bold 80px serif';
             tCtx.textAlign = 'center';
-            tCtx.font = 'bold 60px serif';
-            tCtx.fillText("ALTRÓVE", 300, 350);
+            tCtx.fillText("WU KUAN TE", 300, 300);
+            tCtx.font = '40px sans-serif';
+            tCtx.fillText("Altróve", 300, 400);
             tCtx.font = '20px sans-serif';
-            tCtx.fillStyle = '#80cbc4';
-            tCtx.fillText("WU KUAN TE SOLO EXHIBITION", 300, 400);
             tCtx.fillStyle = '#aaa';
-            tCtx.font = '16px sans-serif';
-            tCtx.fillText("Please Upload DM Image", 300, 500);
+            tCtx.fillText("Please Upload Image", 300, 500);
 
             const img = new Image();
-            img.src = tempCanvas.toDataURL();
+            img.src = tCan.toDataURL();
             img.onload = () => {
-                imageObj = img;
-                resizeCanvas();
-            }
+                imgObj = img;
+                resize();
+                animate();
+            };
         }
 
-        // 2. File Upload
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        // Handle User Upload
+        document.getElementById('upload').addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if(!file) return;
-
+            if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    imageObj = img;
-                    resizeCanvas(); // Re-init with new image
+                    imgObj = img;
+                    initParticles(); // Rebuild grid with new image
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
-
-        document.getElementById('resetBtn').addEventListener('click', () => {
-             // Explode effect on reset
-             particles.forEach(p => {
-                 p.vx = (Math.random() - 0.5) * 50;
-                 p.vy = (Math.random() - 0.5) * 50;
-             });
+        
+        document.getElementById('reset').addEventListener('click', () => {
+            if(imgObj) initParticles();
         });
 
         // Start
-        resizeCanvas();
-        createDemoVisual();
-        animate();
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        createDefaultImage();
 
     </script>
 </body>
