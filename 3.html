@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Altróve - Particle Interaction</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Altróve - Liquid Mosaic Interaction</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&display=swap');
 
@@ -12,39 +13,55 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #000;
+            background-color: #02111b; /* Dark Deep Blue */
             overflow: hidden;
             font-family: 'Montserrat', sans-serif;
+            touch-action: none; /* Prevent scrolling on mobile */
         }
 
-        #canvas1 {
-            display: block;
+        #canvas-container {
+            position: relative;
             width: 100%;
             height: 100%;
-        }
-
-        .controls {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
             display: flex;
-            gap: 15px;
-            z-index: 100;
-            background: rgba(0, 20, 30, 0.6);
-            padding: 15px 25px;
-            border-radius: 30px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(100, 255, 218, 0.2);
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
         }
 
+        canvas {
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        /* Controls UI */
+        .ui-layer {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            pointer-events: none; /* Let clicks pass through */
+            z-index: 10;
+        }
+
+        .controls {
+            background: rgba(2, 17, 27, 0.85);
+            padding: 15px 25px;
+            border-radius: 30px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(128, 203, 196, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
         .btn {
-            background: transparent;
+            background: rgba(128, 203, 196, 0.1);
             color: #80cbc4;
             border: 1px solid #80cbc4;
-            padding: 10px 20px;
+            padding: 10px 24px;
             font-size: 0.9rem;
             cursor: pointer;
             border-radius: 20px;
@@ -52,303 +69,381 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             text-decoration: none;
-            display: inline-block;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .btn:hover {
+        .btn:hover, .btn:active {
             background: #80cbc4;
-            color: #000;
-            box-shadow: 0 0 15px rgba(128, 203, 196, 0.5);
+            color: #00251a;
+            box-shadow: 0 0 15px rgba(128, 203, 196, 0.4);
         }
 
         input[type="file"] {
             display: none;
         }
 
-        .instruction {
-            color: white;
+        .hint {
+            color: #b2dfdb;
             font-size: 0.8rem;
             opacity: 0.8;
             margin-bottom: 5px;
-            text-align: center;
         }
 
-        #loading {
+        /* Loading Spinner */
+        #loader {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #80cbc4;
-            font-size: 1.2rem;
-            pointer-events: none;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(128, 203, 196, 0.3);
+            border-radius: 50%;
+            border-top-color: #80cbc4;
+            animation: spin 1s ease-in-out infinite;
             display: none;
-            letter-spacing: 2px;
+            z-index: 20;
         }
+
+        @keyframes spin {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Icon simulation */
+        .icon-upload::before { content: '↑'; font-weight: bold; }
+        .icon-reset::before { content: '↻'; font-weight: bold; }
+
     </style>
 </head>
 <body>
 
-    <canvas id="canvas1"></canvas>
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
     
-    <div id="loading">GENERATING PARTICLES...</div>
+    <div id="loader"></div>
 
-    <div class="controls">
-        <div class="instruction">建議：上傳您的 DM 圖片以獲得最佳效果</div>
-        <div style="display: flex; gap: 10px;">
-            <label for="imageUpload" class="btn">上傳 DM 圖片</label>
-            <input type="file" id="imageUpload" accept="image/*">
-            <button class="btn" id="resetBtn">重置畫面</button>
+    <div class="ui-layer">
+        <div class="controls">
+            <div class="hint">為獲得最佳效果，請上傳您的 DM 圖片</div>
+            <div style="display: flex; gap: 15px;">
+                <label for="fileInput" class="btn icon-upload">上傳圖片</label>
+                <input type="file" id="fileInput" accept="image/*">
+                <button id="resetBtn" class="btn icon-reset">重置展示</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('canvas1');
-        const ctx = canvas.getContext('2d');
-        const loading = document.getElementById('loading');
+        /**
+         * System Configuration
+         * Balanced for high performance on mobile and clarity.
+         */
+        const config = {
+            tileSize: 12,    // Size of each grid cell (smaller = more detail, slower)
+            spacing: 0,      // 0 = Seamless image (Crucial for readability)
+            friction: 0.92,  // How fast particles slow down
+            ease: 0.15,      // How fast they return to origin
+            mouseRadius: 20000, // Interaction strength (squared)
+            scatterForce: 40 // How far they fly
+        };
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        let particlesArray = [];
-        let imageCoordinates = [];
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const loader = document.getElementById('loader');
         
-        // Settings
-        const particleDensity = 1; // Higher number = fewer particles (skip pixels)
-        const mouseRadius = 100; // Interaction radius
-        const returnSpeed = 0.08; // How fast particles fly back
+        let width, height;
+        let particles = [];
+        let ambientParticles = [];
+        let imageObj = null;
+        
+        // Mouse State
+        let mouse = { x: undefined, y: undefined, isActive: false };
 
-        // Mouse/Touch handling
-        let mouse = {
-            x: null,
-            y: null,
-            radius: mouseRadius
+        // Handle Resize
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (imageObj) initParticles(imageObj);
         }
+        window.addEventListener('resize', resizeCanvas);
 
-        window.addEventListener('mousemove', function(e){
+        // Interaction Listeners
+        window.addEventListener('mousemove', e => {
             mouse.x = e.x;
             mouse.y = e.y;
+            mouse.isActive = true;
         });
-
-        window.addEventListener('touchmove', function(e){
-            e.preventDefault(); 
+        
+        window.addEventListener('touchmove', e => {
+            e.preventDefault();
             mouse.x = e.touches[0].clientX;
             mouse.y = e.touches[0].clientY;
-        }, {passive: false});
+            mouse.isActive = true;
+        }, { passive: false });
 
-        window.addEventListener('mouseout', function(){
-            mouse.x = null;
-            mouse.y = null;
-        });
+        window.addEventListener('touchend', () => { mouse.isActive = false; mouse.x = undefined; });
+        window.addEventListener('mouseout', () => { mouse.isActive = false; mouse.x = undefined; });
 
-        window.addEventListener('touchend', function(){
-            mouse.x = null;
-            mouse.y = null;
-        });
-
-        // Particle Class
-        class Particle {
-            constructor(x, y, color) {
-                this.x = Math.random() * canvas.width; // Start random
-                this.y = Math.random() * canvas.height;
-                this.originX = x; // Target position (image pixel)
+        /**
+         * PARTICLE CLASS
+         * Represents a square slice of the image.
+         */
+        class Tile {
+            constructor(x, y, color, size) {
+                this.originX = x;
                 this.originY = y;
+                this.x = x; // Current position
+                this.y = y;
                 this.color = color;
-                this.size = 1.5;
+                
+                // Slightly overlap to prevent black lines (The "Gapless" trick)
+                this.w = size + 0.6; 
+                this.h = size + 0.6;
+                
                 this.vx = 0;
                 this.vy = 0;
-                this.friction = 0.9; // Physics friction
-                this.ease = Math.random() * 0.1 + returnSpeed; // Different return speeds for depth
-            }
-
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.size, this.size);
+                this.angle = 0;
+                this.va = 0; // Velocity angle
             }
 
             update() {
-                // Physics: Distance from target
-                let dx = this.originX - this.x;
-                let dy = this.originY - this.y;
-                let distanceFromOrigin = Math.sqrt(dx*dx + dy*dy);
+                // Physics to return to origin
+                const dx = this.originX - this.x;
+                const dy = this.originY - this.y;
                 
-                // Physics: Distance from mouse
-                let mouseDistance = 10000; // default infinity
-                let force = 0;
-                let angle = 0;
+                // Move towards origin
+                this.vx += dx * config.ease;
+                this.vy += dy * config.ease;
+                
+                // Mouse Interaction
+                if (mouse.isActive && mouse.x !== undefined) {
+                    const dxMouse = mouse.x - this.x;
+                    const dyMouse = mouse.y - this.y;
+                    const distSq = dxMouse * dxMouse + dyMouse * dyMouse;
 
-                if (mouse.x != null) {
-                    let dxMouse = mouse.x - this.x;
-                    let dyMouse = mouse.y - this.y;
-                    mouseDistance = dxMouse*dxMouse + dyMouse*dyMouse; // squared distance for perf
-                    
-                    if (mouseDistance < mouse.radius * mouse.radius) {
-                        const dist = Math.sqrt(mouseDistance);
-                        force = (mouse.radius - dist) / mouse.radius;
-                        angle = Math.atan2(dyMouse, dxMouse);
+                    if (distSq < config.mouseRadius) {
+                        const dist = Math.sqrt(distSq);
+                        const force = (Math.sqrt(config.mouseRadius) - dist) / Math.sqrt(config.mouseRadius);
+                        const angle = Math.atan2(dyMouse, dxMouse);
                         
-                        // Push away from mouse
-                        let pushX = Math.cos(angle) * force * 50; // Strength
-                        let pushY = Math.sin(angle) * force * 50;
+                        // Push away
+                        const pushX = Math.cos(angle) * force * config.scatterForce;
+                        const pushY = Math.sin(angle) * force * config.scatterForce;
                         
                         this.vx -= pushX;
                         this.vy -= pushY;
+                        
+                        // Add some rotation for the "broken glass" effect
+                        this.va += (Math.random() - 0.5) * 0.2 * force;
                     }
                 }
 
-                // Move towards origin if not disturbed
-                this.vx += dx * this.ease * 0.05;
-                this.vy += dy * this.ease * 0.05;
+                // Friction (dampening)
+                this.vx *= config.friction;
+                this.vy *= config.friction;
+                this.va *= 0.9;
 
-                // Apply friction
-                this.vx *= this.friction;
-                this.vy *= this.friction;
-
-                // Update pos
                 this.x += this.vx;
                 this.y += this.vy;
+                this.angle += this.va;
+                
+                // Reset angle slowly
+                this.angle *= 0.9;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.w/2, this.y + this.h/2);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = this.color;
+                // Draw rectangle centered at position
+                ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+                ctx.restore();
             }
         }
 
-        // Initialize particles from image data
-        function init(img) {
-            particlesArray = [];
+        /**
+         * AMBIENT PARTICLE (The "Atmosphere")
+         * These float ON TOP of the image to give the art feel,
+         * without being part of the text readability.
+         */
+        class Floater {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * height; // Start anywhere vertically
+            }
             
-            // Calculate aspect ratio to fit image in canvas
-            let imgWidth = img.width;
-            let imgHeight = img.height;
-            const maxWidth = canvas.width * 0.9;
-            const maxHeight = canvas.height * 0.8;
-            
-            // Maintain aspect ratio
-            const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight);
-            const drawWidth = imgWidth * scale;
-            const drawHeight = imgHeight * scale;
-            const startX = (canvas.width - drawWidth) / 2;
-            const startY = (canvas.height - drawHeight) / 2;
+            reset() {
+                this.x = Math.random() * width;
+                this.y = height + 10;
+                this.speed = Math.random() * 1 + 0.5;
+                this.size = Math.random() * 2;
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
 
-            // Draw image to an offscreen/temp context to read data
-            ctx.drawImage(img, startX, startY, drawWidth, drawHeight);
-            
-            // Get pixel data
-            // Optimization: Depending on device pixel ratio, this can be heavy.
-            // We scan every 'particleDensity' pixel.
-            const scannedData = ctx.getImageData(startX, startY, drawWidth, drawHeight);
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the image
+            update() {
+                this.y -= this.speed;
+                if(this.y < -10) this.reset();
+            }
 
-            for (let y = 0; y < scannedData.height; y += particleDensity) {
-                for (let x = 0; x < scannedData.width; x += particleDensity) {
-                    const index = (y * scannedData.width + x) * 4;
-                    const alpha = scannedData.data[index + 3];
-                    
-                    // Only create particles for visible pixels
-                    if (alpha > 128) {
-                        const r = scannedData.data[index];
-                        const g = scannedData.data[index + 1];
-                        const b = scannedData.data[index + 2];
-                        const color = `rgb(${r},${g},${b})`;
-                        
-                        particlesArray.push(new Particle(x + startX, y + startY, color));
+            draw() {
+                ctx.fillStyle = `rgba(200, 255, 230, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+
+        /**
+         * INITIALIZATION
+         * Reads image data and creates tiles.
+         */
+        function initParticles(img) {
+            loader.style.display = 'block';
+            
+            // Wait a frame to allow UI to update
+            setTimeout(() => {
+                particles = [];
+                ambientParticles = [];
+                
+                // 1. Calculate proper scaling to fit screen 'contain' style
+                const scale = Math.min(width / img.width, height / img.height) * 0.85; // 0.85 for some padding
+                const drawW = img.width * scale;
+                const drawH = img.height * scale;
+                const startX = (width - drawW) / 2;
+                const startY = (height - drawH) / 2;
+
+                // 2. Draw to offscreen canvas to get pixel data
+                const tmpCanvas = document.createElement('canvas');
+                const tmpCtx = tmpCanvas.getContext('2d');
+                tmpCanvas.width = width;
+                tmpCanvas.height = height;
+                tmpCtx.drawImage(img, startX, startY, drawW, drawH);
+                
+                // 3. Scan pixels
+                const step = config.tileSize;
+                const imgData = tmpCtx.getImageData(0, 0, width, height).data;
+
+                for (let y = startY; y < startY + drawH; y += step) {
+                    for (let x = startX; x < startX + drawW; x += step) {
+                        // Sample the center pixel of the grid cell
+                        const index = ((Math.floor(y) * width) + Math.floor(x)) * 4;
+                        const r = imgData[index];
+                        const g = imgData[index + 1];
+                        const b = imgData[index + 2];
+                        const a = imgData[index + 3];
+
+                        if (a > 128) { // Skip transparent
+                            const color = `rgb(${r},${g},${b})`;
+                            particles.push(new Tile(x, y, color, step));
+                        }
                     }
                 }
-            }
-            loading.style.display = 'none';
+
+                // 4. Create atmospheric particles
+                for(let i=0; i<80; i++) {
+                    ambientParticles.push(new Floater());
+                }
+
+                loader.style.display = 'none';
+            }, 50);
         }
 
-        // Animation Loop
+        /**
+         * ANIMATION LOOP
+         */
         function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Trails effect (optional, change to 1 for no trails)
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Clear with dark blue background (Matches the poster vibe)
+            ctx.fillStyle = '#02111b'; 
+            ctx.fillRect(0, 0, width, height);
             
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].draw();
-                particlesArray[i].update();
-            }
+            // 1. Draw Image Tiles
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // 2. Draw Floating Atmosphere (Top Layer)
+            ambientParticles.forEach(ap => {
+                ap.update();
+                ap.draw();
+            });
+
             requestAnimationFrame(animate);
         }
 
-        // --- Image Loading Logic ---
-
-        // 1. Create a default "Placeholder" image programmatically so the screen isn't black
-        function createDefaultImage() {
+        /**
+         * UI & FILE HANDLING
+         */
+        
+        // 1. Create a default "Demo" visual
+        function createDemoVisual() {
             const tempCanvas = document.createElement('canvas');
             const tCtx = tempCanvas.getContext('2d');
             tempCanvas.width = 600;
             tempCanvas.height = 800;
-
-            // Background Gradient (Deep Ocean)
-            const grd = tCtx.createLinearGradient(0, 0, 0, 800);
-            grd.addColorStop(0, "#02111b");
-            grd.addColorStop(0.5, "#004d40");
-            grd.addColorStop(1, "#02111b");
-            tCtx.fillStyle = grd;
-            tCtx.fillRect(0, 0, 600, 800);
-
-            // Ring
-            tCtx.beginPath();
-            tCtx.strokeStyle = "rgba(128, 203, 196, 0.8)";
-            tCtx.lineWidth = 2;
-            tCtx.arc(300, 400, 150, 0, Math.PI*2);
-            tCtx.stroke();
-
-            // Text
-            tCtx.fillStyle = "#ffffff";
-            tCtx.font = "300 60px serif";
-            tCtx.textAlign = "center";
-            tCtx.fillText("Altróve", 300, 380);
             
-            tCtx.font = "300 20px sans-serif";
-            tCtx.fillStyle = "#80cbc4";
-            tCtx.letterSpacing = "5px";
-            tCtx.fillText("WU KUAN TE", 300, 300);
-
-            tCtx.font = "300 16px sans-serif";
-            tCtx.fillStyle = "#b2dfdb";
-            tCtx.fillText("Upload your DM Image", 300, 450);
-            tCtx.fillText("to see the full effect", 300, 475);
+            // Background
+            const grd = tCtx.createLinearGradient(0,0,0,800);
+            grd.addColorStop(0, '#001');
+            grd.addColorStop(1, '#023');
+            tCtx.fillStyle = grd;
+            tCtx.fillRect(0,0,600,800);
+            
+            // Text
+            tCtx.fillStyle = 'white';
+            tCtx.textAlign = 'center';
+            tCtx.font = 'bold 60px serif';
+            tCtx.fillText("ALTRÓVE", 300, 350);
+            tCtx.font = '20px sans-serif';
+            tCtx.fillStyle = '#80cbc4';
+            tCtx.fillText("WU KUAN TE SOLO EXHIBITION", 300, 400);
+            tCtx.fillStyle = '#aaa';
+            tCtx.font = '16px sans-serif';
+            tCtx.fillText("Please Upload DM Image", 300, 500);
 
             const img = new Image();
             img.src = tempCanvas.toDataURL();
-            img.onload = () => init(img);
+            img.onload = () => {
+                imageObj = img;
+                resizeCanvas();
+            }
         }
 
-        // 2. Handle User Upload
-        const fileInput = document.getElementById('imageUpload');
-        fileInput.addEventListener('change', function(e) {
+        // 2. File Upload
+        document.getElementById('fileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            if(!file) return;
 
-            loading.style.display = 'block';
-            
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = (event) => {
                 const img = new Image();
-                img.onload = function() {
-                    init(img);
-                }
+                img.onload = () => {
+                    imageObj = img;
+                    resizeCanvas(); // Re-init with new image
+                };
                 img.src = event.target.result;
-            }
+            };
             reader.readAsDataURL(file);
         });
 
-        const resetBtn = document.getElementById('resetBtn');
-        resetBtn.addEventListener('click', () => {
-             particlesArray.forEach(p => {
-                 p.x = Math.random() * canvas.width;
-                 p.y = Math.random() * canvas.height;
+        document.getElementById('resetBtn').addEventListener('click', () => {
+             // Explode effect on reset
+             particles.forEach(p => {
+                 p.vx = (Math.random() - 0.5) * 50;
+                 p.vy = (Math.random() - 0.5) * 50;
              });
         });
 
         // Start
-        createDefaultImage();
+        resizeCanvas();
+        createDemoVisual();
         animate();
-
-        // Handle resize
-        window.addEventListener('resize', function() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            // Note: In a real prod app, we'd need to re-init particles here, 
-            // but for this demo we'll let them float to avoid clearing user's upload immediately
-        });
 
     </script>
 </body>
