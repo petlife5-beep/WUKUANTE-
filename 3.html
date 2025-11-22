@@ -12,11 +12,12 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
-            background-color: #000508; /* Deep dark background */
+            height: 100%; /* 使用 100% 而非 100vh 以避免移動端導覽列跳動問題 */
+            background-color: #000508;
             overflow: hidden;
             font-family: 'Montserrat', sans-serif;
-            touch-action: none;
+            touch-action: none; /* 禁止預設的雙指縮放與滾動 */
+            position: fixed; /* 強制固定視窗，防止 iOS 彈性滾動 */
         }
 
         #canvas-container {
@@ -27,47 +28,44 @@
             align-items: center;
         }
 
-        /* UI Controls (Bottom Center) */
+        /* UI Controls */
         .controls {
             position: absolute;
-            bottom: 30px;
+            bottom: 30px; /* 提高底部距離，避開手機手勢條 */
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0, 20, 30, 0.85);
-            padding: 12px 24px;
+            padding: 12px 20px;
             border-radius: 40px;
             display: flex;
-            gap: 20px;
+            gap: 15px;
             backdrop-filter: blur(8px);
             z-index: 100;
             border: 1px solid rgba(128, 203, 196, 0.2);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            white-space: nowrap;
         }
 
         .btn {
             background: transparent;
             color: #80cbc4;
             border: 1px solid #80cbc4;
-            padding: 10px 20px;
-            font-size: 0.9rem;
+            padding: 8px 16px;
+            font-size: 0.85rem;
             cursor: pointer;
             border-radius: 25px;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-weight: 400;
-            letter-spacing: 0.5px;
+            gap: 6px;
         }
-
+        
         .btn:hover {
             background: rgba(128, 203, 196, 0.15);
-            box-shadow: 0 0 10px rgba(128, 203, 196, 0.3);
         }
 
         input[type="file"] { display: none; }
         
-        /* Loading Spinner */
         #loading {
             position: absolute;
             top: 50%; left: 50%;
@@ -79,16 +77,17 @@
             text-align: center;
             font-size: 0.9rem;
             line-height: 1.6;
+            pointer-events: none;
         }
 
-        /* Info Panel Toggle Button (Top Right) */
+        /* Info Panel Button */
         #info-toggle {
             position: absolute;
-            top: 20px;
+            top: 20px; /* 避開狀態列 */
             right: 20px;
             z-index: 110;
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             border: 1px solid rgba(128, 203, 196, 0.5);
             background: rgba(0, 20, 30, 0.7);
@@ -100,20 +99,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: all 0.3s ease;
-        }
-        #info-toggle:hover {
-            background: #80cbc4;
-            color: #000508;
         }
 
-        /* Info Panel Overlay */
+        /* Info Panel */
         #info-panel {
             position: absolute;
-            top: 0;
-            right: 0;
-            width: 100%;
-            max-width: 320px;
+            top: 0; right: 0;
+            width: 100%; max-width: 320px;
             height: 100%;
             background: rgba(2, 17, 27, 0.95);
             backdrop-filter: blur(15px);
@@ -125,72 +117,24 @@
             overflow-y: auto;
             border-left: 1px solid rgba(128, 203, 196, 0.1);
             color: #e0f7fa;
-            pointer-events: auto; /* Ensure text is selectable */
         }
 
-        #info-panel.active {
-            transform: translateX(0);
-            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-        }
+        #info-panel.active { transform: translateX(0); }
 
-        /* Typography for Info Panel */
-        .info-title h1 {
-            font-size: 2rem;
-            font-weight: 300;
-            margin: 0 0 0.5rem 0;
-            color: #ffffff;
-            letter-spacing: 1px;
-        }
-        .info-title h2 {
-            font-size: 1rem;
-            font-weight: 400;
-            margin: 0 0 2rem 0;
-            color: #80cbc4;
-            letter-spacing: 0.5px;
-        }
-        .info-section {
-            margin-bottom: 2rem;
-        }
-        .info-label {
-            font-size: 0.8rem;
-            color: #80cbc4;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 0.5rem;
-            display: block;
-            opacity: 0.8;
-        }
-        .info-text {
-            font-size: 0.95rem;
-            line-height: 1.6;
-            font-weight: 300;
-            color: #b2dfdb;
-        }
-        .highlight {
-            color: #ffffff;
-            font-weight: 400;
-        }
-        
-        /* Icon style simulation */
-        .icon-upload::before { content: '↑'; margin-right: 8px; font-size: 1.1em;}
-        .icon-sound::before { content: '♪'; margin-right: 8px; font-size: 1.1em;}
+        .info-title h1 { font-size: 1.8rem; margin: 0 0 0.5rem 0; color: #fff; }
+        .info-title h2 { font-size: 0.9rem; margin: 0 0 2rem 0; color: #80cbc4; }
+        .info-section { margin-bottom: 1.5rem; }
+        .info-label { font-size: 0.75rem; color: #80cbc4; opacity: 0.8; display: block; margin-bottom: 0.3rem;}
+        .info-text { font-size: 0.9rem; line-height: 1.5; color: #b2dfdb; }
+        .highlight { color: #fff; font-weight: 500; }
 
-        /* Mobile Responsiveness */
+        /* Icons */
+        .icon-upload::before { content: '↑'; }
+        .icon-sound::before { content: '♪'; }
+
         @media (max-width: 480px) {
-            .controls {
-                width: 90%;
-                justify-content: center;
-                box-sizing: border-box;
-                bottom: 20px;
-            }
-            .btn {
-                padding: 10px 16px;
-                font-size: 0.85rem;
-            }
-            #info-panel {
-                max-width: 100%;
-                padding-top: 70px;
-            }
+            .controls { padding: 10px 15px; gap: 10px; bottom: 40px;}
+            .btn { padding: 8px 12px; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -202,29 +146,22 @@
         <canvas id="mainCanvas"></canvas>
     </div>
 
-    <!-- Toggle Button for Info Panel -->
     <button id="info-toggle">i</button>
 
-    <!-- Slide-in Information Panel -->
     <div id="info-panel">
         <div class="info-title">
             <h1>Altróve</h1>
             <h2>Wu Kuan Te Solo Exhibition</h2>
             <h2>《他方》吳冠德創作個展</h2>
         </div>
-
         <div class="info-section">
             <span class="info-label">展覽日期 | Date</span>
             <div class="info-text highlight">2025.12.05 — 2026.01.16</div>
         </div>
-
         <div class="info-section">
             <span class="info-label">開幕酒會 | Vernissage</span>
-            <div class="info-text">
-                2025.12.05 (Fri.) 19:00
-            </div>
+            <div class="info-text">2025.12.05 (Fri.) 19:00</div>
         </div>
-
         <div class="info-section">
             <span class="info-label">展覽地點 | Venue</span>
             <div class="info-text">
@@ -232,17 +169,10 @@
                 Via Chiatamone 26, Napoli
             </div>
         </div>
-        
-        <div class="info-section" style="margin-top: 3rem; border-top: 1px solid rgba(128, 203, 196, 0.2); padding-top: 1.5rem;">
-             <div class="info-text" style="font-size: 0.8rem; opacity: 0.6;">
-                 * 文字資訊可選取複製<br>
-                 * 點擊畫面任意處可啟用音效
-             </div>
-        </div>
     </div>
 
     <div class="controls">
-        <label for="upload" class="btn icon-upload">更換 DM 圖片</label>
+        <label for="upload" class="btn icon-upload">更換 DM</label>
         <input type="file" id="upload" accept="image/*">
         <button id="sound-toggle" class="btn icon-sound">音效: 開</button>
     </div>
@@ -258,142 +188,94 @@
         let particles = [];
         let imgObj = null;
         let mouse = { x: null, y: null };
-        // Use a simpler check for mobile to decide performance settings
         let isMobile = window.innerWidth < 768;
 
-        // --- Audio Context & Sound Logic ---
+        // Sound System
         let audioCtx = null;
         let isSoundEnabled = true;
         let lastSoundTime = 0;
-        const soundCooldown = 120; // ms between sounds
+        const soundCooldown = 80;
 
         function initAudio() {
             if (audioCtx) return;
-            // Create AudioContext on first user interaction
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AudioContext();
-            
-            // Unlock audio context on iOS/Chrome
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        function playInteractionSound() {
-            if (!isSoundEnabled || !audioCtx || audioCtx.state !== 'running') return;
-
+        function playSound() {
+            if (!isSoundEnabled || !audioCtx) return;
             const now = Date.now();
             if (now - lastSoundTime < soundCooldown) return;
-
-            // Simple synthesized "pop" or "bubble" sound
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-
-            oscillator.type = 'sine';
-            // Random frequency for variety
-            oscillator.frequency.setValueAtTime(200 + Math.random() * 150, audioCtx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
-
-            gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); // Volume
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.15);
-
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(300 + Math.random()*200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
             lastSoundTime = now;
         }
 
         soundToggleBtn.addEventListener('click', (e) => {
-            // Ensure audio is init on click
             initAudio();
             isSoundEnabled = !isSoundEnabled;
             soundToggleBtn.textContent = isSoundEnabled ? "音效: 開" : "音效: 關";
             soundToggleBtn.style.opacity = isSoundEnabled ? '1' : '0.6';
-            e.stopPropagation(); // Prevent triggering canvas interaction
+            e.stopPropagation();
         });
-        
-        // Also init audio on any canvas click
+
         canvas.addEventListener('click', initAudio);
         canvas.addEventListener('touchstart', initAudio, {passive: true});
 
-
-        // --- Info Panel Logic ---
-        infoToggle.addEventListener('click', () => {
-            infoPanel.classList.toggle('active');
-            infoToggle.textContent = infoPanel.classList.contains('active') ? '×' : 'i';
-        });
-        
-        // Close panel when clicking outside text areas
+        // Info Panel
+        infoToggle.addEventListener('click', () => infoPanel.classList.toggle('active'));
         infoPanel.addEventListener('click', (e) => {
-            if (e.target === infoPanel) {
-                infoPanel.classList.remove('active');
-                infoToggle.textContent = 'i';
-            }
+            if(e.target === infoPanel) infoPanel.classList.remove('active');
         });
 
-
-        // --- Particle System Configuration ---
-        const cols = isMobile ? 14 : 24; 
-        const interactionRadiusSq = isMobile ? 6400 : 14400; // Adjusted radius
-        const pushStrength = isMobile ? 18 : 25;
-        const returnSpeed = 0.1;
-
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            isMobile = window.innerWidth < 768;
-            if(imgObj) initParticles();
-        }
-        window.addEventListener('resize', resize);
-
-        // --- Input Handling with Sound Trigger ---
-        const handleMove = (x, y) => {
-            mouse.x = x;
-            mouse.y = y;
-            playInteractionSound();
-        };
-
-        canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            handleMove(e.touches[0].clientX, e.touches[0].clientY);
-        }, { passive: false });
+        // --- Improved Particle System ---
         
-        ['mouseleave', 'touchend'].forEach(evt => {
-            canvas.addEventListener(evt, () => { mouse.x = null; mouse.y = null; });
-        });
+        // Config
+        const cols = isMobile ? 12 : 20; // 減少欄數以增加粒子尺寸，提高效能
+        const pushStrength = isMobile ? 20 : 30;
+        const returnSpeed = 0.15;
 
-        // --- Particle Class (The "Tile") ---
-        class SimplifiedTile {
+        class Tile {
             constructor(x, y, size, sX, sY, sW, sH) {
                 this.baseX = x; this.baseY = y;
                 this.x = x; this.y = y;
                 this.size = size;
                 this.sX = sX; this.sY = sY; this.sW = sW; this.sH = sH;
             }
-
             draw() {
-                ctx.drawImage(imgObj, this.sX, this.sY, this.sW, this.sH, this.x, this.y, this.size, this.size);
+                // 使用 drawImage 確保高畫質，size+0.5 是為了消除縫隙
+                ctx.drawImage(imgObj, this.sX, this.sY, this.sW, this.sH, this.x, this.y, this.size + 0.5, this.size + 0.5);
             }
-
             update() {
                 let dx = 0, dy = 0;
+                // 簡單的滑鼠互動邏輯
                 if (mouse.x !== null) {
-                    let mouseDx = mouse.x - (this.x + this.size/2);
-                    let mouseDy = mouse.y - (this.y + this.size/2);
-                    let distSq = mouseDx*mouseDx + mouseDy*mouseDy;
-
-                    if (distSq < interactionRadiusSq) {
-                        let dist = Math.sqrt(distSq);
-                        let force = (Math.sqrt(interactionRadiusSq) - dist) / Math.sqrt(interactionRadiusSq);
-                        let angle = Math.atan2(mouseDy, mouseDx);
-                        dx -= Math.cos(angle) * force * pushStrength;
-                        dy -= Math.sin(angle) * force * pushStrength;
+                    let mx = mouse.x - (this.x + this.size/2);
+                    let my = mouse.y - (this.y + this.size/2);
+                    let dSq = mx*mx + my*my;
+                    // 增加互動半徑
+                    let radSq = isMobile ? 8000 : 15000;
+                    
+                    if (dSq < radSq) {
+                        let dist = Math.sqrt(dSq);
+                        let force = (Math.sqrt(radSq) - dist) / Math.sqrt(radSq);
+                        let ang = Math.atan2(my, mx);
+                        dx -= Math.cos(ang) * force * pushStrength;
+                        dy -= Math.sin(ang) * force * pushStrength;
                     }
                 }
+                // 回歸原位
                 dx += (this.baseX - this.x) * returnSpeed;
                 dy += (this.baseY - this.y) * returnSpeed;
                 this.x += dx;
@@ -401,91 +283,124 @@
             }
         }
 
+        function resize() {
+            // 使用 documentElement.clientWidth 獲得更精確的手機寬度
+            canvas.width = document.documentElement.clientWidth || window.innerWidth;
+            canvas.height = document.documentElement.clientHeight || window.innerHeight;
+            isMobile = canvas.width < 768;
+            if(imgObj) initParticles();
+        }
+        
+        // 監聽螢幕旋轉與調整大小
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+
+        // Input Listeners
+        const setMouse = (x, y) => {
+            mouse.x = x; mouse.y = y;
+            playSound();
+        };
+        canvas.addEventListener('mousemove', e => setMouse(e.clientX, e.clientY));
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            setMouse(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+        
+        ['mouseleave', 'touchend', 'touchcancel'].forEach(ev => {
+            canvas.addEventListener(ev, () => { mouse.x = null; mouse.y = null; });
+        });
+
         function initParticles() {
-            loading.style.display = 'block';
-            setTimeout(() => {
-                particles = [];
-                // Fit image to screen with a margin
-                const margin = isMobile ? 0.92 : 0.85;
-                const scale = Math.min(canvas.width / imgObj.width, canvas.height / imgObj.height) * margin;
-                const displayW = imgObj.width * scale;
-                const displayH = imgObj.height * scale;
-                const startX = (canvas.width - displayW) / 2;
-                const startY = (canvas.height - displayH) / 2;
+            if(!imgObj) return;
+            particles = [];
+            
+            // *** 關鍵修正：手機版強制縮小比例 (Safe Padding) ***
+            // 電腦版留 90% 畫面，手機版只留 80% 畫面，確保不會切邊
+            const margin = isMobile ? 0.80 : 0.90;
+            
+            // 計算縮放比例：同時檢查寬度和高度，取最小值 (Contain)
+            const scale = Math.min(
+                (canvas.width * margin) / imgObj.width, 
+                (canvas.height * margin) / imgObj.height
+            );
 
-                const tileSize = displayW / cols;
-                const rows = Math.ceil(displayH / tileSize);
+            const drawW = imgObj.width * scale;
+            const drawH = imgObj.height * scale;
+            
+            // 絕對置中
+            const startX = (canvas.width - drawW) / 2;
+            const startY = (canvas.height - drawH) / 2;
 
-                for (let r = 0; r < rows; r++) {
-                    for (let c = 0; c < cols; c++) {
-                        const sX = c * (imgObj.width / cols);
-                        const sY = r * (imgObj.width / cols);
-                        const sW = imgObj.width / cols;
-                        const sH = sW;
+            const tileSize = drawW / cols;
+            const rows = Math.ceil(drawH / tileSize);
 
-                        if(sY + sH <= imgObj.height + 2) { // +2 tolerance
-                             particles.push(new SimplifiedTile(
-                                startX + c*tileSize, 
-                                startY + r*tileSize, 
-                                tileSize + 0.8, // Overlap to prevent gaps
-                                sX, sY, sW, sH
-                            ));
-                        }
+            for(let r=0; r<rows; r++) {
+                for(let c=0; c<cols; c++) {
+                    const sX = c * (imgObj.width / cols);
+                    const sY = r * (imgObj.width / cols); // Source 是正方形切分
+                    const sW = imgObj.width / cols;
+                    const sH = sW;
+                    
+                    // 確保不超出圖片範圍
+                    if(sY + sH/2 < imgObj.height) {
+                        particles.push(new Tile(
+                            startX + c*tileSize,
+                            startY + r*tileSize,
+                            tileSize,
+                            sX, sY, sW, sH
+                        ));
                     }
                 }
-                loading.style.display = 'none';
-            }, 30);
+            }
         }
 
         function animate() {
             ctx.fillStyle = '#000508';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            let i = particles.length;
-            while (i--) {
+            for(let i=0; i<particles.length; i++) {
                 particles[i].update();
                 particles[i].draw();
             }
             requestAnimationFrame(animate);
         }
 
-        // --- Initialization & File Handling ---
-        
-        // Load Default Image: ./poster.jpg
-        function loadDefaultImage() {
+        // Load Image
+        function loadDefault() {
             loading.style.display = 'block';
             const img = new Image();
-            // Removed crossorigin for local file compatibility
-            
-            // *** 關鍵修改：設定為同層目錄下的 poster.jpg ***
+            // 讀取同層目錄的 poster.jpg
             img.src = "./poster.jpg";
-            
             img.onload = () => {
+                loading.style.display = 'none';
                 imgObj = img;
                 resize();
                 animate();
             };
             img.onerror = () => {
                 loading.style.display = 'block';
-                loading.innerHTML = "找不到 poster.jpg<br>請確認檔案是否在同資料夾<br>或直接點擊下方按鈕上傳";
-                console.error("Failed to load ./poster.jpg");
+                loading.innerHTML = "未偵測到預設圖片<br>請點擊下方按鈕上傳";
             };
         }
 
         document.getElementById('upload').addEventListener('change', (e) => {
-            const file = e.target.files[0]; if (!file) return;
+            const f = e.target.files[0];
+            if(!f) return;
             loading.style.display = 'block';
-            const reader = new FileReader();
-            reader.onload = (event) => {
+            const r = new FileReader();
+            r.onload = (ev) => {
                 const img = new Image();
-                img.onload = () => { imgObj = img; initParticles(); };
-                img.src = event.target.result;
+                img.onload = () => {
+                    loading.style.display = 'none';
+                    imgObj = img;
+                    initParticles();
+                };
+                img.src = ev.target.result;
             };
-            reader.readAsDataURL(file);
+            r.readAsDataURL(f);
         });
 
-        // Start the application
-        resize();
-        loadDefaultImage();
+        // Start
+        loadDefault();
 
     </script>
 </body>
