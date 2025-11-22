@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Altróve - High Res Particle View</title>
+    <title>Altróve - Immersive Exhibition Display</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
 
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #000508;
+            background-color: #000508; /* Deep dark background */
             overflow: hidden;
             font-family: 'Montserrat', sans-serif;
             touch-action: none;
@@ -26,298 +26,460 @@
             align-items: center;
         }
 
-        canvas {
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        }
-
-        /* UI Controls */
+        /* UI Controls (Bottom Center) */
         .controls {
             position: absolute;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px 20px;
-            border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 20, 30, 0.85);
+            padding: 12px 24px;
+            border-radius: 40px;
             display: flex;
-            gap: 15px;
-            align-items: center;
-            backdrop-filter: blur(5px);
+            gap: 20px;
+            backdrop-filter: blur(8px);
             z-index: 100;
+            border: 1px solid rgba(128, 203, 196, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
         .btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 0.85rem;
+            background: transparent;
+            color: #80cbc4;
+            border: 1px solid #80cbc4;
+            padding: 10px 20px;
+            font-size: 0.9rem;
             cursor: pointer;
-            border-radius: 20px;
-            transition: 0.3s;
-            white-space: nowrap;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
         }
 
         .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(128, 203, 196, 0.15);
+            box-shadow: 0 0 10px rgba(128, 203, 196, 0.3);
         }
 
         input[type="file"] { display: none; }
+        
+        /* Loading Spinner */
+        #loading {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #80cbc4;
+            display: none;
+            font-letter-spacing: 2px;
+            z-index: 200;
+        }
 
-        .hint {
+        /* Info Panel Toggle Button (Top Right) */
+        #info-toggle {
             position: absolute;
             top: 20px;
+            right: 20px;
+            z-index: 110;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 1px solid rgba(128, 203, 196, 0.5);
+            background: rgba(0, 20, 30, 0.7);
+            color: #80cbc4;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        #info-toggle:hover {
+            background: #80cbc4;
+            color: #000508;
+        }
+
+        /* Info Panel Overlay */
+        #info-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
             width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.5);
+            max-width: 320px;
+            height: 100%;
+            background: rgba(2, 17, 27, 0.95);
+            backdrop-filter: blur(15px);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 105;
+            padding: 80px 30px 30px 30px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-left: 1px solid rgba(128, 203, 196, 0.1);
+            color: #e0f7fa;
+            pointer-events: auto; /* Ensure text is selectable */
+        }
+
+        #info-panel.active {
+            transform: translateX(0);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+        }
+
+        /* Typography for Info Panel */
+        .info-title h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            margin: 0 0 0.5rem 0;
+            color: #ffffff;
+            letter-spacing: 1px;
+        }
+        .info-title h2 {
+            font-size: 1rem;
+            font-weight: 400;
+            margin: 0 0 2rem 0;
+            color: #80cbc4;
+            letter-spacing: 0.5px;
+        }
+        .info-section {
+            margin-bottom: 2rem;
+        }
+        .info-label {
             font-size: 0.8rem;
-            pointer-events: none;
+            color: #80cbc4;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.5rem;
+            display: block;
+            opacity: 0.8;
+        }
+        .info-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            font-weight: 300;
+            color: #b2dfdb;
+        }
+        .highlight {
+            color: #ffffff;
+            font-weight: 400;
+        }
+        
+        /* Icon style simulation */
+        .icon-upload::before { content: '↑'; margin-right: 8px; font-size: 1.1em;}
+        .icon-sound::before { content: '♪'; margin-right: 8px; font-size: 1.1em;}
+
+        /* Mobile Responsiveness */
+        @media (max-width: 480px) {
+            .controls {
+                width: 90%;
+                justify-content: center;
+                box-sizing: border-box;
+                bottom: 20px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.85rem;
+            }
+            #info-panel {
+                max-width: 100%;
+                padding-top: 70px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <div class="hint">Touch to Interact · Upload DM</div>
+    <div id="loading">LOADING...</div>
 
     <div id="canvas-container">
         <canvas id="mainCanvas"></canvas>
     </div>
 
+    <!-- Toggle Button for Info Panel -->
+    <button id="info-toggle">i</button>
+
+    <!-- Slide-in Information Panel -->
+    <div id="info-panel">
+        <div class="info-title">
+            <h1>Altróve</h1>
+            <h2>Wu Kuan Te Solo Exhibition</h2>
+            <h2>《他方》吳冠德創作個展</h2>
+        </div>
+
+        <div class="info-section">
+            <span class="info-label">展覽日期 | Date</span>
+            <div class="info-text highlight">2025.12.05 — 2026.01.16</div>
+        </div>
+
+        <div class="info-section">
+            <span class="info-label">開幕酒會 | Vernissage</span>
+            <div class="info-text">
+                2025.12.05 (Fri.) 19:00
+            </div>
+        </div>
+
+        <div class="info-section">
+            <span class="info-label">展覽地點 | Venue</span>
+            <div class="info-text">
+                <span class="highlight">Design Sulmondo Gallery</span><br>
+                Via Chiatamone 26, Napoli
+            </div>
+        </div>
+        
+        <div class="info-section" style="margin-top: 3rem; border-top: 1px solid rgba(128, 203, 196, 0.2); padding-top: 1.5rem;">
+             <div class="info-text" style="font-size: 0.8rem; opacity: 0.6;">
+                 * 文字資訊可選取複製<br>
+                 * 點擊畫面任意處可啟用音效
+             </div>
+        </div>
+    </div>
+
     <div class="controls">
-        <label for="upload" class="btn">📷 上傳 DM</label>
+        <label for="upload" class="btn icon-upload">更換 DM 圖片</label>
         <input type="file" id="upload" accept="image/*">
-        <button id="reset" class="btn">↺ 重置</button>
+        <button id="sound-toggle" class="btn icon-sound">音效: 開</button>
     </div>
 
     <script>
         const canvas = document.getElementById('mainCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // System Config
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const loading = document.getElementById('loading');
+        const infoToggle = document.getElementById('info-toggle');
+        const infoPanel = document.getElementById('info-panel');
+        const soundToggleBtn = document.getElementById('sound-toggle');
+
         let particles = [];
         let imgObj = null;
-        let isInteracting = false;
-        
-        // Interaction Point
-        const mouse = { x: 0, y: 0, radius: 100 };
+        let mouse = { x: null, y: null };
+        // Use a simpler check for mobile to decide performance settings
+        let isMobile = window.innerWidth < 768;
 
-        // Resize Logic
+        // --- Audio Context & Sound Logic ---
+        let audioCtx = null;
+        let isSoundEnabled = true;
+        let lastSoundTime = 0;
+        const soundCooldown = 120; // ms between sounds
+
+        function initAudio() {
+            if (audioCtx) return;
+            // Create AudioContext on first user interaction
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            
+            // Unlock audio context on iOS/Chrome
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playInteractionSound() {
+            if (!isSoundEnabled || !audioCtx || audioCtx.state !== 'running') return;
+
+            const now = Date.now();
+            if (now - lastSoundTime < soundCooldown) return;
+
+            // Simple synthesized "pop" or "bubble" sound
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sine';
+            // Random frequency for variety
+            oscillator.frequency.setValueAtTime(200 + Math.random() * 150, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
+
+            gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime); // Volume
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.15);
+
+            lastSoundTime = now;
+        }
+
+        soundToggleBtn.addEventListener('click', (e) => {
+            // Ensure audio is init on click
+            initAudio();
+            isSoundEnabled = !isSoundEnabled;
+            soundToggleBtn.textContent = isSoundEnabled ? "音效: 開" : "音效: 關";
+            soundToggleBtn.style.opacity = isSoundEnabled ? '1' : '0.6';
+            e.stopPropagation(); // Prevent triggering canvas interaction
+        });
+        
+        // Also init audio on any canvas click
+        canvas.addEventListener('click', initAudio);
+        canvas.addEventListener('touchstart', initAudio, {passive: true});
+
+
+        // --- Info Panel Logic ---
+        infoToggle.addEventListener('click', () => {
+            infoPanel.classList.toggle('active');
+            infoToggle.textContent = infoPanel.classList.active ? '×' : 'i';
+        });
+        
+        // Close panel when clicking outside text areas
+        infoPanel.addEventListener('click', (e) => {
+            if (e.target === infoPanel) {
+                infoPanel.classList.remove('active');
+                infoToggle.textContent = 'i';
+            }
+        });
+
+
+        // --- Particle System Configuration ---
+        const cols = isMobile ? 14 : 24; 
+        const interactionRadiusSq = isMobile ? 6400 : 14400; // Adjusted radius
+        const pushStrength = isMobile ? 18 : 25;
+        const returnSpeed = 0.1;
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            isMobile = window.innerWidth < 768;
             if(imgObj) initParticles();
         }
         window.addEventListener('resize', resize);
 
-        // Interaction Listeners
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-            isInteracting = true;
-        });
-        window.addEventListener('touchmove', e => {
+        // --- Input Handling with Sound Trigger ---
+        const handleMove = (x, y) => {
+            mouse.x = x;
+            mouse.y = y;
+            playInteractionSound();
+        };
+
+        canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        canvas.addEventListener('touchmove', e => {
             e.preventDefault();
-            mouse.x = e.touches[0].clientX;
-            mouse.y = e.touches[0].clientY;
-            isInteracting = true;
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
         }, { passive: false });
         
-        window.addEventListener('touchend', () => isInteracting = false);
-        window.addEventListener('mouseout', () => isInteracting = false);
+        ['mouseleave', 'touchend'].forEach(evt => {
+            canvas.addEventListener(evt, () => { mouse.x = null; mouse.y = null; });
+        });
 
-        /**
-         * TEXTURE PARTICLE
-         * Instead of a solid color, this particle draws a piece of the image.
-         */
-        class PuzzlePiece {
-            constructor(x, y, size, imgX, imgY, imgW, imgH) {
-                this.baseX = x;     // Resting screen position
-                this.baseY = y;
-                this.x = x;         // Current position
-                this.y = y;
-                
-                // Texture Coordinates (Where on the source image to cut from)
-                this.tx = imgX;
-                this.ty = imgY;
-                this.tw = imgW;
-                this.th = imgH;
-                
+        // --- Particle Class (The "Tile") ---
+        class SimplifiedTile {
+            constructor(x, y, size, sX, sY, sW, sH) {
+                this.baseX = x; this.baseY = y;
+                this.x = x; this.y = y;
                 this.size = size;
-                this.density = (Math.random() * 30) + 1; // Different weight for each piece
-                this.angle = 0;
+                this.sX = sX; this.sY = sY; this.sW = sW; this.sH = sH;
             }
 
             draw() {
-                ctx.save();
-                ctx.translate(this.x + this.size/2, this.y + this.size/2);
-                ctx.rotate(this.angle);
-                // The Magic: DrawImage instead of FillRect
-                // This ensures full resolution inside the particle
-                ctx.drawImage(
-                    imgObj, 
-                    this.tx, this.ty, this.tw, this.th, // Source Crop
-                    -this.size/2, -this.size/2, this.size, this.size // Dest Draw
-                );
-                ctx.restore();
+                ctx.drawImage(imgObj, this.sX, this.sY, this.sW, this.sH, this.x, this.y, this.size, this.size);
             }
 
             update() {
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let distance = Math.sqrt(dx*dx + dy*dy);
-                let forceDirectionX = dx / distance;
-                let forceDirectionY = dy / distance;
-                
-                // Physics: Repel radius
-                const maxDist = 120;
-                let force = (maxDist - distance) / maxDist;
-                let directionX = forceDirectionX * force * this.density;
-                let directionY = forceDirectionY * force * this.density;
+                let dx = 0, dy = 0;
+                if (mouse.x !== null) {
+                    let mouseDx = mouse.x - (this.x + this.size/2);
+                    let mouseDy = mouse.y - (this.y + this.size/2);
+                    let distSq = mouseDx*mouseDx + mouseDy*mouseDy;
 
-                if (isInteracting && distance < maxDist) {
-                    this.x -= directionX * 2; // Push away strength
-                    this.y -= directionY * 2;
-                    this.angle = force * 0.5; // Rotate slightly when pushed
-                } else {
-                    // Return to origin (Snap back)
-                    if (this.x !== this.baseX) {
-                        let dx = this.x - this.baseX;
-                        this.x -= dx / 10; // Ease factor
-                    }
-                    if (this.y !== this.baseY) {
-                        let dy = this.y - this.baseY;
-                        this.y -= dy / 10;
-                    }
-                    // Reset rotation
-                    if (this.angle !== 0) {
-                        this.angle -= this.angle / 10;
+                    if (distSq < interactionRadiusSq) {
+                        let dist = Math.sqrt(distSq);
+                        let force = (Math.sqrt(interactionRadiusSq) - dist) / Math.sqrt(interactionRadiusSq);
+                        let angle = Math.atan2(mouseDy, mouseDx);
+                        dx -= Math.cos(angle) * force * pushStrength;
+                        dy -= Math.sin(angle) * force * pushStrength;
                     }
                 }
+                dx += (this.baseX - this.x) * returnSpeed;
+                dy += (this.baseY - this.y) * returnSpeed;
+                this.x += dx;
+                this.y += dy;
             }
         }
 
         function initParticles() {
-            particles = [];
-            
-            // 1. Fit Image to Screen (Contain)
-            // Use a slight margin so it looks like a poster
-            const margin = 0.9;
-            const scale = Math.min(canvas.width / imgObj.width, canvas.height / imgObj.height) * margin;
-            
-            const displayW = imgObj.width * scale;
-            const displayH = imgObj.height * scale;
-            const startX = (canvas.width - displayW) / 2;
-            const startY = (canvas.height - displayH) / 2;
+            loading.style.display = 'block';
+            setTimeout(() => {
+                particles = [];
+                // Fit image to screen with a margin
+                const margin = isMobile ? 0.92 : 0.85;
+                const scale = Math.min(canvas.width / imgObj.width, canvas.height / imgObj.height) * margin;
+                const displayW = imgObj.width * scale;
+                const displayH = imgObj.height * scale;
+                const startX = (canvas.width - displayW) / 2;
+                const startY = (canvas.height - displayH) / 2;
 
-            // 2. Determine Grid Size
-            // Mobile needs fewer particles for 60fps, Desktop can handle more.
-            // But since we use drawImage, we can use LARGER tiles without losing quality!
-            // Let's use ~25 columns.
-            const cols = 25; 
-            const tileSize = displayW / cols;
-            const rows = Math.ceil(displayH / tileSize);
+                const tileSize = displayW / cols;
+                const rows = Math.ceil(displayH / tileSize);
 
-            // 3. Create Particles
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const x = startX + c * tileSize;
-                    const y = startY + r * tileSize;
-                    
-                    // Source Image Mapping
-                    // We need to cut exactly the corresponding piece from the original high-res image
-                    const srcX = c * (imgObj.width / cols);
-                    const srcY = r * (imgObj.width / cols); // Assuming square tiles in source logic
-                    const srcW = imgObj.width / cols;
-                    const srcH = srcW; // Keep aspect logic simple
-                    
-                    // More precise mapping to avoid drift
-                    const sX = c * (imgObj.width / cols);
-                    const sY = r * (imgObj.height / rows);
-                    const sW = imgObj.width / cols;
-                    const sH = imgObj.height / rows;
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const sX = c * (imgObj.width / cols);
+                        const sY = r * (imgObj.width / cols);
+                        const sW = imgObj.width / cols;
+                        const sH = sW;
 
-                    // Only add if within bounds
-                    if(sY < imgObj.height) {
-                        particles.push(new PuzzlePiece(x, y, tileSize, sX, sY, sW, sH));
+                        if(sY + sH <= imgObj.height + 2) { // +2 tolerance
+                             particles.push(new SimplifiedTile(
+                                startX + c*tileSize, 
+                                startY + r*tileSize, 
+                                tileSize + 0.8, // Overlap to prevent gaps
+                                sX, sY, sW, sH
+                            ));
+                        }
                     }
                 }
-            }
+                loading.style.display = 'none';
+            }, 30);
         }
 
         function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw particles
-            for (let i = 0; i < particles.length; i++) {
+            ctx.fillStyle = '#000508';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            let i = particles.length;
+            while (i--) {
                 particles[i].update();
                 particles[i].draw();
             }
             requestAnimationFrame(animate);
         }
 
-        // --- Init Logic ---
+        // --- Initialization & File Handling ---
         
-        // Default Image Generator (for demo)
-        function createDefaultImage() {
-            const tCan = document.createElement('canvas');
-            const tCtx = tCan.getContext('2d');
-            tCan.width = 600;
-            tCan.height = 800;
-            
-            // Deep Blue gradient
-            const grd = tCtx.createLinearGradient(0,0,0,800);
-            grd.addColorStop(0, '#002');
-            grd.addColorStop(1, '#057');
-            tCtx.fillStyle = grd;
-            tCtx.fillRect(0,0,600,800);
-            
-            // Text
-            tCtx.fillStyle = 'white';
-            tCtx.font = 'bold 80px serif';
-            tCtx.textAlign = 'center';
-            tCtx.fillText("WU KUAN TE", 300, 300);
-            tCtx.font = '40px sans-serif';
-            tCtx.fillText("Altróve", 300, 400);
-            tCtx.font = '20px sans-serif';
-            tCtx.fillStyle = '#aaa';
-            tCtx.fillText("Please Upload Image", 300, 500);
-
+        // Load the Default Image
+        function loadDefaultImage() {
+            loading.style.display = 'block';
             const img = new Image();
-            img.src = tCan.toDataURL();
+            img.crossOrigin = "Anonymous";
+            // Using a placeholder image that fits the theme (nature/blue/mysterious)
+            // In a real deployment, you would host the actual DM image and use its URL here.
+            img.src = "https://images.unsplash.com/photo-1505832018823-50331d70d237?q=80&w=1000&auto=format&fit=crop";
+            
             img.onload = () => {
                 imgObj = img;
                 resize();
                 animate();
             };
+            img.onerror = () => {
+                loading.textContent = "Failed to load default image. Please upload.";
+            };
         }
 
-        // Handle User Upload
         document.getElementById('upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
+            loading.style.display = 'block';
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
-                img.onload = () => {
-                    imgObj = img;
-                    initParticles(); // Rebuild grid with new image
-                };
+                img.onload = () => { imgObj = img; initParticles(); };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
-        
-        document.getElementById('reset').addEventListener('click', () => {
-            if(imgObj) initParticles();
-        });
 
-        // Start
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        createDefaultImage();
+        // Start the application
+        resize();
+        loadDefaultImage();
 
     </script>
 </body>
