@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -73,8 +74,11 @@
             transform: translate(-50%, -50%);
             color: #80cbc4;
             display: none;
-            font-letter-spacing: 2px;
+            letter-spacing: 2px;
             z-index: 200;
+            text-align: center;
+            font-size: 0.9rem;
+            line-height: 1.6;
         }
 
         /* Info Panel Toggle Button (Top Right) */
@@ -319,7 +323,7 @@
         // --- Info Panel Logic ---
         infoToggle.addEventListener('click', () => {
             infoPanel.classList.toggle('active');
-            infoToggle.textContent = infoPanel.classList.active ? '×' : 'i';
+            infoToggle.textContent = infoPanel.classList.contains('active') ? '×' : 'i';
         });
         
         // Close panel when clicking outside text areas
@@ -446,14 +450,14 @@
 
         // --- Initialization & File Handling ---
         
-        // Load the Default Image
+        // Load Default Image: ./poster.jpg
         function loadDefaultImage() {
             loading.style.display = 'block';
             const img = new Image();
-            img.crossOrigin = "Anonymous";
-            // Using a placeholder image that fits the theme (nature/blue/mysterious)
-            // In a real deployment, you would host the actual DM image and use its URL here.
-            img.src = "https://images.unsplash.com/photo-1505832018823-50331d70d237?q=80&w=1000&auto=format&fit=crop";
+            // Removed crossorigin for local file compatibility
+            
+            // *** 關鍵修改：設定為同層目錄下的 poster.jpg ***
+            img.src = "./poster.jpg";
             
             img.onload = () => {
                 imgObj = img;
@@ -461,7 +465,9 @@
                 animate();
             };
             img.onerror = () => {
-                loading.textContent = "Failed to load default image. Please upload.";
+                loading.style.display = 'block';
+                loading.innerHTML = "找不到 poster.jpg<br>請確認檔案是否在同資料夾<br>或直接點擊下方按鈕上傳";
+                console.error("Failed to load ./poster.jpg");
             };
         }
 
