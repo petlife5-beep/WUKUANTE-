@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Altróve - Wu Kuan Te Solo Exhibition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@200;300;400&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #02111b; /* Deep dark blue base */
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            background: radial-gradient(circle at center, transparent 0%, #02111b 120%);
+        }
+
+        .text-container {
+            padding: 2rem;
+            max-width: 800px;
+            animation: fadeIn 3s ease-out;
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 200;
+            font-size: 2.5rem;
+            letter-spacing: 0.2em;
+            margin: 0;
+            text-transform: uppercase;
+            color: #e0f7fa;
+            text-shadow: 0 0 20px rgba(100, 255, 218, 0.3);
+        }
+
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 300;
+            font-size: 0.9rem;
+            letter-spacing: 0.5em;
+            margin-top: 0.5rem;
+            margin-bottom: 3rem;
+            color: #80cbc4;
+            text-transform: uppercase;
+        }
+
+        .main-title {
+            font-family: 'Cormorant Garamond', serif; /* Handwritten style fallback */
+            font-size: 6rem;
+            font-style: italic;
+            font-weight: 300;
+            margin: 1rem 0;
+            line-height: 1;
+            background: -webkit-linear-gradient(#fff, #80cbc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Simulating the handwritten feel of "Altrove" */
+        .main-title span {
+            display: inline-block;
+        }
+
+        .info-block {
+            margin-top: 3rem;
+            font-size: 0.9rem;
+            line-height: 1.8;
+            color: #b2dfdb;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+        }
+
+        .info-block p {
+            margin: 0.5rem 0;
+        }
+
+        .highlight {
+            color: #ffffff;
+            font-weight: 400;
+        }
+
+        .location {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            opacity: 0.8;
+            border-top: 1px solid rgba(128, 203, 196, 0.3);
+            display: inline-block;
+            padding-top: 1rem;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; letter-spacing: 0.1em; }
+            h2 { font-size: 0.7rem; letter-spacing: 0.3em; margin-bottom: 2rem;}
+            .main-title { font-size: 4rem; }
+            .info-block { font-size: 0.8rem; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* The Ring Graphic simulation */
+        .ring-graphic {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60vh;
+            height: 60vh;
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 50px rgba(100, 255, 218, 0.05);
+            animation: breathe 8s infinite ease-in-out;
+            z-index: 1;
+        }
+
+        .ring-graphic::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            border: 1px solid transparent;
+            border-top-color: rgba(255, 255, 255, 0.5);
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+            animation: spin 20s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 40px rgba(100, 255, 218, 0.1); opacity: 0.8; }
+            50% { box-shadow: 0 0 80px rgba(100, 255, 218, 0.2); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="particleCanvas"></canvas>
+    </div>
+
+    <!-- Central Glowing Ring -->
+    <div class="ring-graphic"></div>
+
+    <div id="content">
+        <div class="text-container">
+            <h1>Wu Kuan Te</h1>
+            <h2>Mostra Personale</h2>
+            
+            <div class="main-title">Altróve</div>
+            
+            <div class="info-block">
+                <p><span class="highlight">2025.12.05 — 2026.01.16</span></p>
+                <p>Vernissage: 5 Dicembre 2025 · 19:00</p>
+                <p style="margin-top: 1rem; font-size: 0.85em; opacity: 0.9;">
+                    《他方》吳冠德創作個展<br>
+                    Martedì – Sabato | 11:00–19:00<br>
+                    Domenica e Lunedì | Chiuso
+                </p>
+            </div>
+
+            <div class="location">
+                SULMONDO<br>
+                Via Chiatamone 26, Napoli
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        
+        // Configuration
+        const particleCount = 150; // Density of particles
+        const connectionDistance = 100;
+        const mouseDistance = 150;
+
+        // Mouse interaction
+        let mouse = { x: null, y: null };
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+        
+        window.addEventListener('touchmove', (e) => {
+             mouse.x = e.touches[0].clientX;
+             mouse.y = e.touches[0].clientY;
+        });
+
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Resize handling
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Particle Class
+        class Particle {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                // Random drift velocity
+                this.vx = (Math.random() - 0.5) * 0.5; 
+                this.vy = (Math.random() - 0.5) * 0.5;
+                
+                // Size variation for depth effect
+                this.size = Math.random() * 2 + 0.5;
+                
+                // Color palette based on the poster image (Teals, Blues, Whites)
+                const colors = [
+                    'rgba(128, 203, 196, ', // Light Teal
+                    'rgba(255, 255, 255, ', // White
+                    'rgba(0, 105, 148, '    // Deep Blue
+                ];
+                this.colorBase = colors[Math.floor(Math.random() * colors.length)];
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Mouse interaction (Repel effect - moving the leaves)
+                if (mouse.x != null) {
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouseDistance) {
+                        const forceDirectionX = dx / distance;
+                        const forceDirectionY = dy / distance;
+                        const force = (mouseDistance - distance) / mouseDistance;
+                        const directionX = forceDirectionX * force * 2; // Strength
+                        const directionY = forceDirectionY * force * 2;
+
+                        this.x -= directionX;
+                        this.y -= directionY;
+                    }
+                }
+
+                // Wrap around screen
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.colorBase + this.opacity + ')';
+                ctx.fill();
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Clear with a slight trail effect for smoothness, matching the dark background
+            ctx.fillStyle = 'rgba(2, 17, 27, 0.2)'; // Matches CSS background
+            ctx.fillRect(0, 0, width, height);
+
+            // Update and draw particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            
+            // Draw subtle connections for "organic web" feel (optional, keeps it cleaner without too many lines)
+            connectParticles();
+        }
+
+        function connectParticles() {
+            let opacityValue = 1;
+            for (let a = 0; a < particles.length; a++) {
+                for (let b = a; b < particles.length; b++) {
+                    let dx = particles[a].x - particles[b].x;
+                    let dy = particles[a].y - particles[b].y;
+                    let distance = dx * dx + dy * dy;
+
+                    if (distance < (connectionDistance * connectionDistance)) {
+                        opacityValue = 1 - (distance / 10000);
+                        ctx.strokeStyle = 'rgba(128, 203, 196,' + (opacityValue * 0.1) + ')'; // Very faint lines
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[a].x, particles[a].y);
+                        ctx.lineTo(particles[b].x, particles[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        initParticles();
+        animate();
+
+    </script>
+</body>
+</html>
