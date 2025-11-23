@@ -13,7 +13,7 @@
     <style>
         body {
             font-family: 'Noto Sans TC', sans-serif;
-            overscroll-behavior: none; /* 防止 iOS 滾動回彈 */
+            overscroll-behavior: none;
         }
         .font-handwriting {
             font-family: 'Caveat', cursive;
@@ -26,28 +26,28 @@
         /* 留言卡片樣式 */
         .message-card {
             box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.1);
-            backdrop-filter: blur(2px); /* 輕微毛玻璃 */
+            backdrop-filter: blur(2px);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: grab;
-            touch-action: none; /* 重要：防止觸控時瀏覽器預設行為 */
+            touch-action: none;
         }
         .message-card:active {
             cursor: grabbing;
             transform: scale(1.02);
             box-shadow: 0 8px 25px rgba(0,0,0,0.3), inset 0 0 30px rgba(255,255,255,0.2);
-            z-index: 50; /* 拖曳時置頂 */
+            z-index: 50;
         }
         /* 男生信紙風格 */
         .card-boy {
-            background: linear-gradient(135deg, rgba(147, 197, 253, 0.85), rgba(196, 181, 253, 0.75)); /* blue-300 to violet-300 */
-            border: 2px solid rgba(165, 180, 252, 0.5); /* indigo-300 */
-            color: #1e3a8a; /* blue-900 */
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.85), rgba(196, 181, 253, 0.75));
+            border: 2px solid rgba(165, 180, 252, 0.5);
+            color: #1e3a8a;
         }
         /* 女生信紙風格 */
         .card-girl {
-            background: linear-gradient(135deg, rgba(249, 168, 212, 0.85), rgba(240, 171, 252, 0.75)); /* pink-300 to fuchsia-300 */
-            border: 2px solid rgba(244, 114, 182, 0.5); /* pink-400 */
-            color: #831843; /* pink-900 */
+            background: linear-gradient(135deg, rgba(249, 168, 212, 0.85), rgba(240, 171, 252, 0.75));
+            border: 2px solid rgba(244, 114, 182, 0.5);
+            color: #831843;
         }
 
         /* 表情符號按鈕 */
@@ -74,11 +74,10 @@
     <div id="app-container" class="relative w-full h-full flex flex-col">
 
         <!-- 1. 留言牆區域 (Wall) -->
-        <!-- 設定背景圖：將使用者提供的水晶場景作為背景 -->
-        <div id="message-wall" class="flex-grow relative overflow-hidden bg-cover bg-center"
-             style="background-image: url('uploaded:1000219100.jpg-4ab99398-ff16-4cbe-aa1a-848685842875');">
+        <!-- 背景圖現在由 JavaScript 動態設定，方便您修改路徑 -->
+        <div id="message-wall" class="flex-grow relative overflow-hidden bg-cover bg-center">
             
-            <!-- 遮罩：讓文字更容易閱讀，同時增加氛圍 -->
+            <!-- 遮罩 -->
             <div class="absolute inset-0 bg-black/20 backdrop-blur-[1px]"></div>
 
             <!-- 標題 -->
@@ -89,19 +88,8 @@
                 <p class="text-gray-200 text-sm mt-1 drop-shadow">拖曳卡片排列，點擊下方按鈕新增留言</p>
             </div>
 
-            <!-- 留言卡片容器 (動態生成) -->
-            <div id="cards-container" class="absolute inset-0 p-4 md:p-10 overflow-auto">
-                <!-- 範例卡片 (之後會被清空) -->
-                <!--
-                <div class="message-card card-boy absolute p-4 rounded-xl w-64" style="top: 100px; left: 50px;">
-                    <div class="flex items-center mb-2 border-b border-blue-400/30 pb-1">
-                        <img src="uploaded:1000219098.png-04c8adc7-4e13-42cc-b216-29c0b44521f2" class="w-8 h-8 rounded-full border-2 border-white shadow-sm mr-2 bg-blue-100">
-                        <span class="font-bold text-sm">來自 帥氣男</span>
-                    </div>
-                    <p class="text-sm leading-relaxed font-handwriting text-base">這裡的風景真美，希望能一直和你一起看星星！ ✨</p>
-                </div>
-                -->
-            </div>
+            <!-- 留言卡片容器 -->
+            <div id="cards-container" class="absolute inset-0 p-4 md:p-10 overflow-auto"></div>
         </div>
 
         <!-- 2. 控制列區域 (Controls) -->
@@ -109,16 +97,14 @@
             <!-- 左側：新增留言按鈕 -->
             <div class="flex space-x-3">
                 <button onclick="openModal('boy')" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-full transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95">
-                    <!-- 男偶頭像 Icon -->
                     <div class="w-6 h-6 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
-                         <img src="uploaded:1000219098.png-04c8adc7-4e13-42cc-b216-29c0b44521f2" class="w-full h-full object-cover scale-125 translate-y-1">
+                         <img id="btn-icon-boy" src="" class="w-full h-full object-cover scale-125 translate-y-1">
                     </div>
                     <span class="font-bold text-sm md:text-base">男生留言</span>
                 </button>
                 <button onclick="openModal('girl')" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 text-white rounded-full transition-all shadow-lg hover:shadow-pink-500/30 active:scale-95">
-                    <!-- 女偶頭像 Icon -->
                      <div class="w-6 h-6 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
-                         <img src="uploaded:1000219093.png-8020c3c2-b62a-4abe-bc10-5524a28f70af" class="w-full h-full object-cover scale-125 translate-y-1">
+                         <img id="btn-icon-girl" src="" class="w-full h-full object-cover scale-125 translate-y-1">
                     </div>
                     <span class="font-bold text-sm md:text-base">女生留言</span>
                 </button>
@@ -134,29 +120,19 @@
             </button>
         </div>
 
-        <!-- 3. 留言輸入彈窗 (Modal) -->
+        <!-- 3. 留言輸入彈窗 -->
         <div id="message-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
             <div class="bg-slate-800 rounded-2xl w-11/12 max-w-md p-6 border border-slate-600 shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
-                <!-- 標題與關閉 -->
                 <div class="flex justify-between items-center mb-4">
-                    <h3 id="modal-title" class="text-xl font-bold text-white flex items-center">
-                        <!-- 動態插入圖標與文字 -->
-                    </h3>
+                    <h3 id="modal-title" class="text-xl font-bold text-white flex items-center"></h3>
                     <button onclick="closeModal()" class="text-gray-400 hover:text-white transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-                
-                <!-- 輸入框 -->
                 <div id="input-preview-area" class="p-4 rounded-xl mb-4 transition-colors duration-300 card-boy" style="min-height: 120px;">
                     <textarea id="message-input" rows="4" class="w-full bg-transparent border-none outline-none resize-none font-handwriting text-lg placeholder-current/50" placeholder="寫下你的心裡話..."></textarea>
                 </div>
-
-                <!-- 表情符號與操作 -->
                 <div class="flex flex-col space-y-4">
-                     <!-- 簡易表情符號列 -->
                     <div class="flex flex-wrap gap-1 p-2 bg-slate-700/50 rounded-xl">
                         <span class="emoji-btn" onclick="addEmoji('❤️')">❤️</span>
                         <span class="emoji-btn" onclick="addEmoji('✨')">✨</span>
@@ -167,39 +143,42 @@
                         <span class="emoji-btn" onclick="addEmoji('🌟')">🌟</span>
                         <span class="emoji-btn" onclick="addEmoji('💎')">💎</span>
                     </div>
-
                     <div class="flex justify-end space-x-3">
                         <button onclick="closeModal()" class="px-4 py-2 text-gray-300 hover:text-white transition-colors">取消</button>
-                        <button onclick="postMessage()" id="post-btn" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-bold shadow transition-all active:scale-95">
-                            張貼留言
-                        </button>
+                        <button onclick="postMessage()" id="post-btn" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-bold shadow transition-all active:scale-95">張貼留言</button>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- 載入中提示 -->
         <div id="loading-overlay" class="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-[100] hidden">
             <div class="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mb-4"></div>
             <p class="text-white font-bold" id="loading-text">正在處理...</p>
         </div>
-
     </div>
 
     <script>
-        // 圖片資源路徑
+        // ============================================================
+        // 🔧 設定區域：請在此處修改圖片檔名
+        // ============================================================
         const ASSETS = {
-            bg: 'bg01.jpg-4ab99398-ff16-4cbe-aa1a-848685842875',
-            boy: 'boy01.png-04c8adc7-4e13-42cc-b216-29c0b44521f2',
-            girl: 'girl01.png-8020c3c2-b62a-4abe-bc10-5524a28f70af'
+            // 1. 如果您將圖片與此網頁放在「同一個資料夾」，請修改以下三行：
+            // -----------------------------------------------------------
+            // bg:   '1000219100.jpg',  // 您的背景圖檔名
+            // boy:  '1000219098.png',  // 您的男生圖檔名
+            // girl: '1000219093.png',  // 您的女生圖檔名
+            
+            // 2. (預覽用) 這是目前預覽視窗使用的路徑，下載後您可以刪除或註解掉下面這三行
+            // -----------------------------------------------------------
+            bg: '1000219100.jpg',
+            boy: 'boy01.png',
+            girl: 'girl01.png'
         };
+        // ============================================================
 
-        // 狀態變數
-        let currentRole = 'boy'; // 'boy' or 'girl'
-        let messages = []; // 儲存所有留言資料 {id, role, text, x, y}
-        let zIndexCounter = 10; // 用於控制卡片堆疊順序
+        let currentRole = 'boy';
+        let messages = [];
+        let zIndexCounter = 10;
 
-        // DOM 元素
         const modal = document.getElementById('message-modal');
         const modalContent = document.getElementById('modal-content');
         const modalTitle = document.getElementById('modal-title');
@@ -209,12 +188,18 @@
         const cardsContainer = document.getElementById('cards-container');
         const loadingOverlay = document.getElementById('loading-overlay');
 
-        // --- 彈窗控制 ---
+        // 初始化：設定背景圖與按鈕圖示
+        function initAssets() {
+            // 設定大背景
+            document.getElementById('message-wall').style.backgroundImage = `url('${ASSETS.bg}')`;
+            // 設定按鈕上的小頭像
+            document.getElementById('btn-icon-boy').src = ASSETS.boy;
+            document.getElementById('btn-icon-girl').src = ASSETS.girl;
+        }
+
         function openModal(role) {
             currentRole = role;
-            messageInput.value = ''; // 清空輸入
-            
-            // 更新彈窗樣式與內容
+            messageInput.value = ''; 
             const isBoy = role === 'boy';
             const colorClass = isBoy ? 'card-boy' : 'card-girl';
             const btnClass = isBoy ? 'bg-blue-500 hover:bg-blue-600' : 'bg-pink-500 hover:bg-pink-600';
@@ -231,7 +216,6 @@
                 ${titleText}
             `;
 
-            // 顯示動畫
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -248,35 +232,27 @@
             }, 300);
         }
 
-        // --- 輸入功能 ---
         function addEmoji(emoji) {
             messageInput.setRangeText(emoji, messageInput.selectionStart, messageInput.selectionEnd, 'end');
             messageInput.focus();
         }
 
-        // --- 留言張貼與生成 ---
         function postMessage() {
             const text = messageInput.value.trim();
             if (!text) {
                 messageInput.focus();
-                // 可以加個小動畫提示不可為空
                 inputPreview.classList.add('animate-pulse');
                 setTimeout(()=> inputPreview.classList.remove('animate-pulse'), 500);
                 return;
             }
-
             closeModal();
-
-            // 計算隨機位置 (在容器範圍內)
             const containerRect = cardsContainer.getBoundingClientRect();
-            const cardWidth = 220; // 預估寬度
-            const cardHeight = 150; // 預估高度
-            // 留一些邊距
+            const cardWidth = 220; 
+            const cardHeight = 150;
             const maxX = containerRect.width - cardWidth - 20;
             const maxY = containerRect.height - cardHeight - 20;
-            
             const x = Math.max(20, Math.random() * maxX);
-            const y = Math.max(60, Math.random() * maxY); // 避開頂部標題
+            const y = Math.max(60, Math.random() * maxY);
 
             const msgData = {
                 id: Date.now(),
@@ -316,7 +292,6 @@
             cardsContainer.appendChild(card);
             makeDraggable(card);
             
-            // 進場動畫
             card.style.opacity = 0;
             card.style.transform = 'scale(0.8) translateY(20px)';
             setTimeout(() => {
@@ -324,26 +299,20 @@
                  card.style.opacity = 1;
                  card.style.transform = 'scale(1) translateY(0px)';
             }, 50);
-            // 動畫結束後移除 transform 以避免干擾拖曳
             setTimeout(() => {
                  card.style.transition = 'transform 0.2s, box-shadow 0.2s';
                  card.style.transform = '';
             }, 400);
         }
 
-        // --- 拖曳功能 (支援滑鼠與觸控) ---
         function makeDraggable(element) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-
             element.onmousedown = dragMouseDown;
             element.ontouchstart = dragMouseDown;
 
             function dragMouseDown(e) {
                 e.preventDefault();
-                // 點擊時提升層級
                 element.style.zIndex = zIndexCounter++;
-                
-                // 獲取初始位置
                 if (e.type === 'touchstart') {
                     pos3 = e.touches[0].clientX;
                     pos4 = e.touches[0].clientY;
@@ -351,7 +320,6 @@
                     pos3 = e.clientX;
                     pos4 = e.clientY;
                 }
-                
                 document.onmouseup = closeDragElement;
                 document.onmousemove = elementDrag;
                 document.ontouchend = closeDragElement;
@@ -360,7 +328,6 @@
 
             function elementDrag(e) {
                 e.preventDefault();
-                // 計算新位置
                 let clientX, clientY;
                 if (e.type === 'touchmove') {
                     clientX = e.touches[0].clientX;
@@ -369,102 +336,72 @@
                     clientX = e.clientX;
                     clientY = e.clientY;
                 }
-                
                 pos1 = pos3 - clientX;
                 pos2 = pos4 - clientY;
                 pos3 = clientX;
                 pos4 = clientY;
-
-                // 設定元素新位置
                 let newTop = element.offsetTop - pos2;
                 let newLeft = element.offsetLeft - pos1;
-
-                // 邊界檢查 (防止拖出容器)
                 const containerRect = cardsContainer.getBoundingClientRect();
                 const elemRect = element.getBoundingClientRect();
-                
                 if (newTop < 0) newTop = 0;
                 if (newLeft < 0) newLeft = 0;
                 if (newTop + elemRect.height > containerRect.height) newTop = containerRect.height - elemRect.height;
                 if (newLeft + elemRect.width > containerRect.width) newLeft = containerRect.width - elemRect.width;
-
                 element.style.top = newTop + "px";
                 element.style.left = newLeft + "px";
             }
 
             function closeDragElement() {
-                // 停止移動時移除監聽
                 document.onmouseup = null;
                 document.onmousemove = null;
                 document.ontouchend = null;
                 document.ontouchmove = null;
-
-                // 更新數據中的位置 (選用，如果需要儲存狀態)
-                const id = Number(element.dataset.id);
-                const msg = messages.find(m => m.id === id);
-                if(msg) {
-                    msg.x = element.offsetLeft;
-                    msg.y = element.offsetTop;
-                }
             }
         }
 
-        // --- 存檔成圖功能 ---
         function saveWallAsImage() {
-            // 顯示 loading
             loadingOverlay.classList.remove('hidden');
             document.getElementById('loading-text').innerText = "正在生成圖片，請稍候...";
-
-            // 隱藏不需要截圖的元素 (控制列、彈窗)
-            const controls = document.querySelector('.bg-slate-800\\/90'); // 選取控制列
+            const controls = document.querySelector('.bg-slate-800\\/90'); 
             controls.style.display = 'none'; 
-
             const wallElement = document.getElementById('message-wall');
-            
-            // 暫時移除卡片的過渡效果，避免截圖時位置偏移
             const cards = document.querySelectorAll('.message-card');
             cards.forEach(card => card.style.transition = 'none');
 
-            // 使用 html2canvas 截圖
             html2canvas(wallElement, {
-                useCORS: true, // 允許跨域圖片 (雖然這裡是本地的，但設為 true 比較保險)
-                scale: 2, // 提高解析度 (2倍圖)
-                backgroundColor: null, // 背景透明
-                logging: false, // 關閉日誌
+                useCORS: true,
+                scale: 2,
+                backgroundColor: null,
+                logging: false,
                 onclone: (clonedDoc) => {
-                    // 在克隆的文檔中做一些調整，例如確保標題動畫停在一個好看的位置
                     const clonedTitle = clonedDoc.querySelector('h1');
                     if(clonedTitle) clonedTitle.style.transform = 'translateY(0)';
                 }
             }).then(canvas => {
-                // 將 canvas 轉為圖片 URL
                 const imgData = canvas.toDataURL('image/png');
-                
-                // 創建下載連結
                 const link = document.createElement('a');
                 link.href = imgData;
                 link.download = `水晶心語留言牆_${new Date().toISOString().slice(0,10)}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-
             }).catch(err => {
                 console.error('截圖失敗:', err);
-                alert('抱歉，圖片生成失敗，請稍後再試。');
+                alert('抱歉，圖片生成失敗，可能因瀏覽器安全性限制本地圖片存取。');
             }).finally(() => {
-                // 恢復原狀
                 controls.style.display = 'flex';
                 cards.forEach(card => card.style.transition = '');
                 loadingOverlay.classList.add('hidden');
             });
         }
 
-        // 預先載入一點範例資料，讓畫面不那麼空 (可選)
+        // 啟動初始化
+        initAssets();
+
         window.onload = () => {
-            // 模擬點擊，創建兩個初始留言
             currentRole = 'boy'; messageInput.value = "這裡的風景真美，希望能一直和你一起看星星！ ✨\n—— 來自未來的約定"; postMessage();
             currentRole = 'girl'; messageInput.value = "好呀！那我們約定好了喔，誰都不許反悔~ ❤️\n最喜歡這裡的水晶了！"; postMessage();
-            // 重新調整位置讓它們不要疊在一起
             const cards = document.querySelectorAll('.message-card');
             if(cards[0]) { cards[0].style.left = '15%'; cards[0].style.top = '30%'; }
             if(cards[1]) { cards[1].style.left = '55%'; cards[1].style.top = '50%'; }
@@ -472,4 +409,4 @@
 
     </script>
 </body>
-</html>
+    </html>
