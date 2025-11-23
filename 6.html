@@ -4,409 +4,288 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>水晶心語：雙人留言板</title>
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 html2canvas 用於截圖 -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <!-- 引入谷歌字體 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            overscroll-behavior: none;
-        }
-        .font-handwriting {
-            font-family: 'Caveat', cursive;
-        }
-        /* 自定義滾動條樣式 */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
-        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-
-        /* 留言卡片樣式 */
+        /* --- 手機版面強制設定 --- */
+        body, html { height: 100%; overflow: hidden; background-color: #0f172a; }
+        .font-handwriting { font-family: 'Caveat', cursive; }
+        
+        /* 留言卡片 */
         .message-card {
             box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.1);
             backdrop-filter: blur(2px);
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
             cursor: grab;
             touch-action: none;
         }
-        .message-card:active {
-            cursor: grabbing;
-            transform: scale(1.02);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3), inset 0 0 30px rgba(255,255,255,0.2);
-            z-index: 50;
-        }
-        /* 男生信紙風格 */
+        .message-card:active { transform: scale(1.05); z-index: 999 !important; }
+        
+        /* 男生卡片 (藍) */
         .card-boy {
-            background: linear-gradient(135deg, rgba(147, 197, 253, 0.85), rgba(196, 181, 253, 0.75));
+            background: linear-gradient(135deg, rgba(147, 197, 253, 0.9), rgba(196, 181, 253, 0.85));
             border: 2px solid rgba(165, 180, 252, 0.5);
             color: #1e3a8a;
         }
-        /* 女生信紙風格 */
+        /* 女生卡片 (粉) */
         .card-girl {
-            background: linear-gradient(135deg, rgba(249, 168, 212, 0.85), rgba(240, 171, 252, 0.75));
+            background: linear-gradient(135deg, rgba(249, 168, 212, 0.9), rgba(240, 171, 252, 0.85));
             border: 2px solid rgba(244, 114, 182, 0.5);
             color: #831843;
         }
+        
+        /* 預設大頭貼 (當圖片讀不到時顯示) */
+        .fallback-avatar-boy { background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .fallback-avatar-girl { background: #ec4899; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
 
-        /* 表情符號按鈕 */
-        .emoji-btn {
-            font-size: 1.5rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .emoji-btn:hover { background-color: rgba(255,255,255,0.2); }
-
-        /* 動畫：浮動效果 */
-        @keyframes float-slow {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-        .animate-float { animation: float-slow 5s ease-in-out infinite; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        .animate-float { animation: float 4s ease-in-out infinite; }
     </style>
 </head>
-<body class="h-screen w-screen overflow-hidden bg-slate-900">
+<body class="fixed inset-0 w-full h-[100dvh] flex flex-col">
 
-    <!-- 主應用容器 -->
-    <div id="app-container" class="relative w-full h-full flex flex-col">
+    <!-- 1. 留言牆主畫面 -->
+    <div id="message-wall" class="relative flex-grow w-full h-full overflow-hidden bg-slate-900 bg-cover bg-center bg-no-repeat">
+        <!-- 萬一背景圖讀不到，顯示這個漸層 -->
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-800 -z-10"></div>
+        
+        <!-- 遮罩 -->
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-[1px] pointer-events-none"></div>
 
-        <!-- 1. 留言牆區域 (Wall) -->
-        <!-- 背景圖現在由 JavaScript 動態設定，方便您修改路徑 -->
-        <div id="message-wall" class="flex-grow relative overflow-hidden bg-cover bg-center">
-            
-            <!-- 遮罩 -->
-            <div class="absolute inset-0 bg-black/20 backdrop-blur-[1px]"></div>
-
-            <!-- 標題 -->
-            <div class="absolute top-4 left-0 right-0 text-center z-10 pointer-events-none">
-                <h1 class="text-3xl md:text-4xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-handwriting animate-float">
-                    水晶心語留言牆
-                </h1>
-                <p class="text-gray-200 text-sm mt-1 drop-shadow">拖曳卡片排列，點擊下方按鈕新增留言</p>
-            </div>
-
-            <!-- 留言卡片容器 -->
-            <div id="cards-container" class="absolute inset-0 p-4 md:p-10 overflow-auto"></div>
+        <!-- 標題 -->
+        <div class="absolute top-4 left-0 right-0 text-center z-10 pointer-events-none select-none">
+            <h1 class="text-3xl md:text-4xl font-bold text-white drop-shadow-lg font-handwriting animate-float">
+                水晶心語留言牆
+            </h1>
+            <p class="text-gray-300 text-xs mt-1 opacity-80">拖曳卡片 • 點擊下方留言</p>
         </div>
 
-        <!-- 2. 控制列區域 (Controls) -->
-        <div class="bg-slate-800/90 backdrop-blur-md p-3 flex justify-between items-center border-t border-slate-700 z-20">
-            <!-- 左側：新增留言按鈕 -->
-            <div class="flex space-x-3">
-                <button onclick="openModal('boy')" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-full transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95">
-                    <div class="w-6 h-6 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
-                         <img id="btn-icon-boy" src="" class="w-full h-full object-cover scale-125 translate-y-1">
-                    </div>
-                    <span class="font-bold text-sm md:text-base">男生留言</span>
-                </button>
-                <button onclick="openModal('girl')" class="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-fuchsia-500 hover:from-pink-600 hover:to-fuchsia-600 text-white rounded-full transition-all shadow-lg hover:shadow-pink-500/30 active:scale-95">
-                     <div class="w-6 h-6 rounded-full bg-white/20 overflow-hidden flex items-center justify-center">
-                         <img id="btn-icon-girl" src="" class="w-full h-full object-cover scale-125 translate-y-1">
-                    </div>
-                    <span class="font-bold text-sm md:text-base">女生留言</span>
-                </button>
-            </div>
+        <!-- 卡片容器 -->
+        <div id="cards-container" class="absolute inset-0 z-20 overflow-hidden"></div>
+    </div>
 
-            <!-- 右側：存檔按鈕 -->
-            <button id="save-btn" onclick="saveWallAsImage()" class="flex items-center space-x-2 px-5 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-full transition-all shadow-lg hover:shadow-emerald-500/30 active:scale-95 group">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                <span class="font-bold hidden md:inline">存檔成圖</span>
-                <span class="font-bold md:hidden">存檔</span>
+    <!-- 2. 底部控制列 (固定高度) -->
+    <div class="flex-shrink-0 h-16 md:h-20 bg-slate-800/95 backdrop-blur p-3 flex justify-between items-center border-t border-slate-700 z-50 shadow-2xl">
+        <div class="flex space-x-3">
+            <!-- 男生按鈕 -->
+            <button onclick="openModal('boy')" class="group relative flex items-center space-x-2 px-4 py-2 bg-blue-600 rounded-full text-white shadow-lg active:scale-95 transition overflow-hidden">
+                <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
+                    <!-- 這裡使用 onerror 來處理圖片讀取失敗的情況 -->
+                    <img src="./boy01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-boy'); this.parentElement.innerText='B'">
+                </div>
+                <span class="font-bold text-sm">男生</span>
+            </button>
+            <!-- 女生按鈕 -->
+            <button onclick="openModal('girl')" class="group relative flex items-center space-x-2 px-4 py-2 bg-pink-500 rounded-full text-white shadow-lg active:scale-95 transition overflow-hidden">
+                <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
+                    <img src="./girl01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-girl'); this.parentElement.innerText='G'">
+                </div>
+                <span class="font-bold text-sm">女生</span>
             </button>
         </div>
 
-        <!-- 3. 留言輸入彈窗 -->
-        <div id="message-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-            <div class="bg-slate-800 rounded-2xl w-11/12 max-w-md p-6 border border-slate-600 shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 id="modal-title" class="text-xl font-bold text-white flex items-center"></h3>
-                    <button onclick="closeModal()" class="text-gray-400 hover:text-white transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-                <div id="input-preview-area" class="p-4 rounded-xl mb-4 transition-colors duration-300 card-boy" style="min-height: 120px;">
-                    <textarea id="message-input" rows="4" class="w-full bg-transparent border-none outline-none resize-none font-handwriting text-lg placeholder-current/50" placeholder="寫下你的心裡話..."></textarea>
-                </div>
-                <div class="flex flex-col space-y-4">
-                    <div class="flex flex-wrap gap-1 p-2 bg-slate-700/50 rounded-xl">
-                        <span class="emoji-btn" onclick="addEmoji('❤️')">❤️</span>
-                        <span class="emoji-btn" onclick="addEmoji('✨')">✨</span>
-                        <span class="emoji-btn" onclick="addEmoji('🥰')">🥰</span>
-                        <span class="emoji-btn" onclick="addEmoji('😊')">😊</span>
-                        <span class="emoji-btn" onclick="addEmoji('🥺')">🥺</span>
-                        <span class="emoji-btn" onclick="addEmoji('🎉')">🎉</span>
-                        <span class="emoji-btn" onclick="addEmoji('🌟')">🌟</span>
-                        <span class="emoji-btn" onclick="addEmoji('💎')">💎</span>
-                    </div>
-                    <div class="flex justify-end space-x-3">
-                        <button onclick="closeModal()" class="px-4 py-2 text-gray-300 hover:text-white transition-colors">取消</button>
-                        <button onclick="postMessage()" id="post-btn" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full font-bold shadow transition-all active:scale-95">張貼留言</button>
-                    </div>
-                </div>
+        <button onclick="saveWall()" class="px-5 py-2 bg-emerald-600 text-white rounded-full font-bold text-sm shadow-lg active:scale-95 flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            存檔
+        </button>
+    </div>
+
+    <!-- 3. 輸入彈窗 -->
+    <div id="modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div id="modal-box" class="bg-slate-800 w-[90%] max-w-md p-5 rounded-2xl shadow-2xl transform scale-95 transition-transform">
+            <div class="flex justify-between items-center mb-4 text-white">
+                <h3 id="modal-title" class="font-bold text-lg flex items-center gap-2"></h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
             </div>
-        </div>
-        <div id="loading-overlay" class="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-[100] hidden">
-            <div class="w-12 h-12 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mb-4"></div>
-            <p class="text-white font-bold" id="loading-text">正在處理...</p>
+            <div id="preview-box" class="p-4 rounded-xl mb-4 min-h-[100px] transition-colors">
+                <textarea id="msg-input" class="w-full bg-transparent border-none outline-none resize-none text-lg font-handwriting placeholder-black/50 text-black" rows="3" placeholder="寫下你想說的話..."></textarea>
+            </div>
+            <div class="flex flex-wrap gap-3 mb-4 justify-center">
+                <button onclick="addEmoji('❤️')" class="text-2xl hover:scale-125 transition">❤️</button>
+                <button onclick="addEmoji('✨')" class="text-2xl hover:scale-125 transition">✨</button>
+                <button onclick="addEmoji('🥰')" class="text-2xl hover:scale-125 transition">🥰</button>
+                <button onclick="addEmoji('🔥')" class="text-2xl hover:scale-125 transition">🔥</button>
+            </div>
+            <button onclick="postMsg()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg active:scale-95 transition">送出留言</button>
         </div>
     </div>
 
+    <!-- Loading -->
+    <div id="loading" class="fixed inset-0 bg-black/90 z-[200] hidden flex flex-col items-center justify-center">
+        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+        <p class="text-white">處理中...</p>
+    </div>
+
     <script>
-        // ============================================================
-        // 🔧 設定區域：請在此處修改圖片檔名
-        // ============================================================
-        const ASSETS = {
-            // 1. 如果您將圖片與此網頁放在「同一個資料夾」，請修改以下三行：
-            // -----------------------------------------------------------
-            // bg:   '1000219100.jpg',  // 您的背景圖檔名
-            // boy:  '1000219098.png',  // 您的男生圖檔名
-            // girl: '1000219093.png',  // 您的女生圖檔名
-            
-            // 2. (預覽用) 這是目前預覽視窗使用的路徑，下載後您可以刪除或註解掉下面這三行
-            // -----------------------------------------------------------
-            bg: '1000219100.jpg',
-            boy: 'boy01.png',
-            girl: 'girl01.png'
-        };
-        // ============================================================
+        // ★★★ 這裡設定您的圖片檔名，請確認大小寫完全一致 ★★★
+        const IMG_BG = './1000219100.jpg';
+        const IMG_BOY = './boy01.png';
+        const IMG_GIRL = './girl01.png';
 
         let currentRole = 'boy';
-        let messages = [];
-        let zIndexCounter = 10;
+        let zIndex = 100;
 
-        const modal = document.getElementById('message-modal');
-        const modalContent = document.getElementById('modal-content');
-        const modalTitle = document.getElementById('modal-title');
-        const inputPreview = document.getElementById('input-preview-area');
-        const messageInput = document.getElementById('message-input');
-        const postBtn = document.getElementById('post-btn');
-        const cardsContainer = document.getElementById('cards-container');
-        const loadingOverlay = document.getElementById('loading-overlay');
-
-        // 初始化：設定背景圖與按鈕圖示
-        function initAssets() {
-            // 設定大背景
-            document.getElementById('message-wall').style.backgroundImage = `url('${ASSETS.bg}')`;
-            // 設定按鈕上的小頭像
-            document.getElementById('btn-icon-boy').src = ASSETS.boy;
-            document.getElementById('btn-icon-girl').src = ASSETS.girl;
-        }
+        // 初始化
+        window.onload = function() {
+            // 設定背景，如果讀取失敗就不會是一片黑，而是原本的漸層
+            const img = new Image();
+            img.src = IMG_BG;
+            img.onload = () => {
+                document.getElementById('message-wall').style.backgroundImage = `url('${IMG_BG}')`;
+            };
+            
+            // 產生兩個預設留言測試
+            setTimeout(() => {
+                createCard('boy', "這是我測試的第一則留言！\n希望圖片能順利出來 ✨", window.innerWidth * 0.1, 100);
+                createCard('girl', "如果圖片沒出來，會顯示\n漂亮的顏色圓圈喔 ❤️", window.innerWidth * 0.15, 250);
+            }, 500);
+        };
 
         function openModal(role) {
             currentRole = role;
-            messageInput.value = ''; 
-            const isBoy = role === 'boy';
-            const colorClass = isBoy ? 'card-boy' : 'card-girl';
-            const btnClass = isBoy ? 'bg-blue-500 hover:bg-blue-600' : 'bg-pink-500 hover:bg-pink-600';
-            const titleText = isBoy ? '男生留言' : '女生留言';
-            const imgSrc = isBoy ? ASSETS.boy : ASSETS.girl;
-
-            inputPreview.className = `p-4 rounded-xl mb-4 transition-colors duration-300 ${colorClass}`;
-            postBtn.className = `px-6 py-2 text-white rounded-full font-bold shadow transition-all active:scale-95 ${btnClass}`;
+            const modal = document.getElementById('modal');
+            const box = document.getElementById('modal-box');
+            const title = document.getElementById('modal-title');
+            const preview = document.getElementById('preview-box');
             
-            modalTitle.innerHTML = `
-                <div class="w-8 h-8 rounded-full bg-white/20 overflow-hidden flex items-center justify-center mr-2 border-2 border-white/50">
-                     <img src="${imgSrc}" class="w-full h-full object-cover scale-125 translate-y-1">
-                </div>
-                ${titleText}
-            `;
-
+            document.getElementById('msg-input').value = '';
             modal.classList.remove('hidden');
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-95');
-            }, 10);
-            messageInput.focus();
+                box.classList.remove('scale-95');
+            });
+
+            // 動態設定彈窗內容
+            const isBoy = role === 'boy';
+            const imgSrc = isBoy ? IMG_BOY : IMG_GIRL;
+            const fallbackClass = isBoy ? 'fallback-avatar-boy' : 'fallback-avatar-girl';
+            const label = isBoy ? 'B' : 'G';
+            
+            // 這裡的 img 標籤也加了 onerror，彈窗裡也不會破圖
+            title.innerHTML = `
+                <div class="w-8 h-8 rounded-full overflow-hidden border border-white bg-gray-500 flex items-center justify-center ${fallbackClass}">
+                    <img src="${imgSrc}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerText='${label}'">
+                </div>
+                <span>${isBoy ? '男生留言' : '女生留言'}</span>
+            `;
+            preview.className = `p-4 rounded-xl mb-4 min-h-[100px] transition-colors ${isBoy ? 'card-boy' : 'card-girl'}`;
+            
+            document.getElementById('msg-input').focus();
         }
 
         function closeModal() {
+            const modal = document.getElementById('modal');
+            const box = document.getElementById('modal-box');
             modal.classList.add('opacity-0');
-            modalContent.classList.add('scale-95');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
+            box.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        function addEmoji(emoji) {
-            messageInput.setRangeText(emoji, messageInput.selectionStart, messageInput.selectionEnd, 'end');
-            messageInput.focus();
+        function addEmoji(e) {
+            const input = document.getElementById('msg-input');
+            input.setRangeText(e, input.selectionStart, input.selectionEnd, 'end');
+            input.focus();
         }
 
-        function postMessage() {
-            const text = messageInput.value.trim();
-            if (!text) {
-                messageInput.focus();
-                inputPreview.classList.add('animate-pulse');
-                setTimeout(()=> inputPreview.classList.remove('animate-pulse'), 500);
-                return;
-            }
+        function postMsg() {
+            const txt = document.getElementById('msg-input').value.trim();
+            if(!txt) return;
+            
+            // 隨機位置
+            const x = Math.random() * (window.innerWidth - 250);
+            const y = Math.random() * (window.innerHeight - 300) + 50;
+            
+            createCard(currentRole, txt, Math.max(20, x), Math.max(50, y));
             closeModal();
-            const containerRect = cardsContainer.getBoundingClientRect();
-            const cardWidth = 220; 
-            const cardHeight = 150;
-            const maxX = containerRect.width - cardWidth - 20;
-            const maxY = containerRect.height - cardHeight - 20;
-            const x = Math.max(20, Math.random() * maxX);
-            const y = Math.max(60, Math.random() * maxY);
-
-            const msgData = {
-                id: Date.now(),
-                role: currentRole,
-                text: text,
-                x: x,
-                y: y,
-                zIndex: zIndexCounter++
-            };
-            messages.push(msgData);
-            createMessageCard(msgData);
         }
 
-        function createMessageCard(data) {
-            const isBoy = data.role === 'boy';
-            const colorClass = isBoy ? 'card-boy' : 'card-girl';
-            const imgSrc = isBoy ? ASSETS.boy : ASSETS.girl;
+        function createCard(role, text, x, y) {
+            const el = document.createElement('div');
+            const isBoy = role === 'boy';
+            
+            el.className = `message-card absolute p-4 rounded-xl w-64 flex flex-col ${isBoy ? 'card-boy' : 'card-girl'}`;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.zIndex = zIndex++;
+
+            const imgSrc = isBoy ? IMG_BOY : IMG_GIRL;
             const name = isBoy ? '帥氣男' : '可愛女';
-            const borderColor = isBoy ? 'border-blue-400/30' : 'border-pink-400/30';
-            const bgColor = isBoy ? 'bg-blue-100' : 'bg-pink-100';
+            const fallbackClass = isBoy ? 'fallback-avatar-boy' : 'fallback-avatar-girl';
+            const label = isBoy ? 'B' : 'G';
 
-            const card = document.createElement('div');
-            card.className = `message-card absolute p-4 rounded-xl w-56 md:w-64 ${colorClass}`;
-            card.style.left = `${data.x}px`;
-            card.style.top = `${data.y}px`;
-            card.style.zIndex = data.zIndex;
-            card.dataset.id = data.id;
-
-            card.innerHTML = `
-                <div class="flex items-center mb-2 border-b ${borderColor} pb-1 select-none pointer-events-none">
-                    <img src="${imgSrc}" class="w-8 h-8 rounded-full border-2 border-white shadow-sm mr-2 ${bgColor}">
-                    <span class="font-bold text-sm opacity-80">來自 ${name}</span>
+            // 這裡也加了防呆機制，卡片頭像不會破圖
+            el.innerHTML = `
+                <div class="flex items-center mb-2 border-b border-black/10 pb-1 pointer-events-none">
+                    <div class="w-8 h-8 rounded-full overflow-hidden border border-white bg-gray-400 mr-2 flex items-center justify-center ${fallbackClass}">
+                        <img src="${imgSrc}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerText='${label}'">
+                    </div>
+                    <span class="font-bold text-sm opacity-90">來自 ${name}</span>
                 </div>
-                <p class="text-sm md:text-base leading-relaxed font-handwriting break-words pointer-events-none">${data.text.replace(/\n/g, '<br>')}</p>
+                <p class="text-sm leading-relaxed font-handwriting whitespace-pre-wrap pointer-events-none">${text}</p>
             `;
 
-            cardsContainer.appendChild(card);
-            makeDraggable(card);
+            document.getElementById('cards-container').appendChild(el);
+            setupDrag(el);
+        }
+
+        // 拖曳功能
+        function setupDrag(el) {
+            let isDown = false;
+            let offX, offY;
+
+            const start = (e) => {
+                isDown = true;
+                el.style.zIndex = ++zIndex;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                offX = clientX - el.offsetLeft;
+                offY = clientY - el.offsetTop;
+            };
+
+            const move = (e) => {
+                if(!isDown) return;
+                e.preventDefault();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                el.style.left = (clientX - offX) + 'px';
+                el.style.top = (clientY - offY) + 'px';
+            };
+
+            const end = () => { isDown = false; };
+
+            el.addEventListener('mousedown', start);
+            el.addEventListener('touchstart', start, {passive: false});
+            window.addEventListener('mousemove', move);
+            window.addEventListener('touchmove', move, {passive: false});
+            window.addEventListener('mouseup', end);
+            window.addEventListener('touchend', end);
+        }
+
+        function saveWall() {
+            const loading = document.getElementById('loading');
+            loading.classList.remove('hidden');
             
-            card.style.opacity = 0;
-            card.style.transform = 'scale(0.8) translateY(20px)';
-            setTimeout(() => {
-                 card.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out, box-shadow 0.2s';
-                 card.style.opacity = 1;
-                 card.style.transform = 'scale(1) translateY(0px)';
-            }, 50);
-            setTimeout(() => {
-                 card.style.transition = 'transform 0.2s, box-shadow 0.2s';
-                 card.style.transform = '';
-            }, 400);
-        }
-
-        function makeDraggable(element) {
-            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-            element.onmousedown = dragMouseDown;
-            element.ontouchstart = dragMouseDown;
-
-            function dragMouseDown(e) {
-                e.preventDefault();
-                element.style.zIndex = zIndexCounter++;
-                if (e.type === 'touchstart') {
-                    pos3 = e.touches[0].clientX;
-                    pos4 = e.touches[0].clientY;
-                } else {
-                    pos3 = e.clientX;
-                    pos4 = e.clientY;
-                }
-                document.onmouseup = closeDragElement;
-                document.onmousemove = elementDrag;
-                document.ontouchend = closeDragElement;
-                document.ontouchmove = elementDrag;
-            }
-
-            function elementDrag(e) {
-                e.preventDefault();
-                let clientX, clientY;
-                if (e.type === 'touchmove') {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
-                } else {
-                    clientX = e.clientX;
-                    clientY = e.clientY;
-                }
-                pos1 = pos3 - clientX;
-                pos2 = pos4 - clientY;
-                pos3 = clientX;
-                pos4 = clientY;
-                let newTop = element.offsetTop - pos2;
-                let newLeft = element.offsetLeft - pos1;
-                const containerRect = cardsContainer.getBoundingClientRect();
-                const elemRect = element.getBoundingClientRect();
-                if (newTop < 0) newTop = 0;
-                if (newLeft < 0) newLeft = 0;
-                if (newTop + elemRect.height > containerRect.height) newTop = containerRect.height - elemRect.height;
-                if (newLeft + elemRect.width > containerRect.width) newLeft = containerRect.width - elemRect.width;
-                element.style.top = newTop + "px";
-                element.style.left = newLeft + "px";
-            }
-
-            function closeDragElement() {
-                document.onmouseup = null;
-                document.onmousemove = null;
-                document.ontouchend = null;
-                document.ontouchmove = null;
-            }
-        }
-
-        function saveWallAsImage() {
-            loadingOverlay.classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "正在生成圖片，請稍候...";
-            const controls = document.querySelector('.bg-slate-800\\/90'); 
-            controls.style.display = 'none'; 
-            const wallElement = document.getElementById('message-wall');
-            const cards = document.querySelectorAll('.message-card');
-            cards.forEach(card => card.style.transition = 'none');
-
-            html2canvas(wallElement, {
+            // 隱藏控制列
+            const controls = document.querySelector('.flex-shrink-0');
+            controls.style.display = 'none';
+            
+            const wall = document.getElementById('message-wall');
+            
+            html2canvas(wall, {
                 useCORS: true,
-                scale: 2,
-                backgroundColor: null,
-                logging: false,
-                onclone: (clonedDoc) => {
-                    const clonedTitle = clonedDoc.querySelector('h1');
-                    if(clonedTitle) clonedTitle.style.transform = 'translateY(0)';
-                }
+                scale: 2, // 高畫質
+                backgroundColor: '#0f172a'
             }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = imgData;
-                link.download = `水晶心語留言牆_${new Date().toISOString().slice(0,10)}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }).catch(err => {
-                console.error('截圖失敗:', err);
-                alert('抱歉，圖片生成失敗，可能因瀏覽器安全性限制本地圖片存取。');
+                const a = document.createElement('a');
+                a.download = `留言牆_${Date.now()}.png`;
+                a.href = canvas.toDataURL();
+                a.click();
             }).finally(() => {
                 controls.style.display = 'flex';
-                cards.forEach(card => card.style.transition = '');
-                loadingOverlay.classList.add('hidden');
+                loading.classList.add('hidden');
             });
         }
-
-        // 啟動初始化
-        initAssets();
-
-        window.onload = () => {
-            currentRole = 'boy'; messageInput.value = "這裡的風景真美，希望能一直和你一起看星星！ ✨\n—— 來自未來的約定"; postMessage();
-            currentRole = 'girl'; messageInput.value = "好呀！那我們約定好了喔，誰都不許反悔~ ❤️\n最喜歡這裡的水晶了！"; postMessage();
-            const cards = document.querySelectorAll('.message-card');
-            if(cards[0]) { cards[0].style.left = '15%'; cards[0].style.top = '30%'; }
-            if(cards[1]) { cards[1].style.left = '55%'; cards[1].style.top = '50%'; }
-        };
-
     </script>
 </body>
-    </html>
+</html>
