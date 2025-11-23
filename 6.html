@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水晶心語：雙人留言板</title>
+    <title>水晶心語：雙人留言板 (AI版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
     <style>
-        /* --- 手機版面強制設定 --- */
         body, html { height: 100%; overflow: hidden; background-color: #0f172a; }
         .font-handwriting { font-family: 'Caveat', cursive; }
         
@@ -22,20 +21,17 @@
         }
         .message-card:active { transform: scale(1.05); z-index: 999 !important; }
         
-        /* 男生卡片 (藍) */
         .card-boy {
             background: linear-gradient(135deg, rgba(147, 197, 253, 0.9), rgba(196, 181, 253, 0.85));
             border: 2px solid rgba(165, 180, 252, 0.5);
             color: #1e3a8a;
         }
-        /* 女生卡片 (粉) */
         .card-girl {
             background: linear-gradient(135deg, rgba(249, 168, 212, 0.9), rgba(240, 171, 252, 0.85));
             border: 2px solid rgba(244, 114, 182, 0.5);
             color: #831843;
         }
         
-        /* 預設大頭貼 (當圖片讀不到時顯示) */
         .fallback-avatar-boy { background: #3b82f6; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
         .fallback-avatar-girl { background: #ec4899; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
 
@@ -45,12 +41,12 @@
 </head>
 <body class="fixed inset-0 w-full h-[100dvh] flex flex-col">
 
+    <!-- 隱藏的檔案輸入框 (用於讀取存檔) -->
+    <input type="file" id="load-file-input" accept=".json" class="hidden" onchange="handleLoadFile(this)">
+
     <!-- 1. 留言牆主畫面 -->
-    <div id="message-wall" class="relative flex-grow w-full h-full overflow-hidden bg-slate-900 bg-cover bg-center bg-no-repeat">
-        <!-- 萬一背景圖讀不到，顯示這個漸層 -->
+    <div id="message-wall" class="relative flex-grow w-full h-full overflow-hidden bg-slate-900 bg-cover bg-center bg-no-repeat transition-all duration-700">
         <div class="absolute inset-0 bg-gradient-to-b from-slate-900 to-slate-800 -z-10"></div>
-        
-        <!-- 遮罩 -->
         <div class="absolute inset-0 bg-black/30 backdrop-blur-[1px] pointer-events-none"></div>
 
         <!-- 標題 -->
@@ -58,40 +54,56 @@
             <h1 class="text-3xl md:text-4xl font-bold text-white drop-shadow-lg font-handwriting animate-float">
                 水晶心語留言牆
             </h1>
-            <p class="text-gray-300 text-xs mt-1 opacity-80">拖曳卡片 • 點擊下方留言</p>
+            <p class="text-gray-300 text-xs mt-1 opacity-80">AI 生成背景 • 支援存檔</p>
         </div>
 
         <!-- 卡片容器 -->
         <div id="cards-container" class="absolute inset-0 z-20 overflow-hidden"></div>
     </div>
 
-    <!-- 2. 底部控制列 (固定高度) -->
-    <div class="flex-shrink-0 h-16 md:h-20 bg-slate-800/95 backdrop-blur p-3 flex justify-between items-center border-t border-slate-700 z-50 shadow-2xl">
-        <div class="flex space-x-3">
-            <!-- 男生按鈕 -->
-            <button onclick="openModal('boy')" class="group relative flex items-center space-x-2 px-4 py-2 bg-blue-600 rounded-full text-white shadow-lg active:scale-95 transition overflow-hidden">
-                <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
-                    <!-- 這裡使用 onerror 來處理圖片讀取失敗的情況 -->
-                    <img src="./boy01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-boy'); this.parentElement.innerText='B'">
-                </div>
-                <span class="font-bold text-sm">男生</span>
-            </button>
-            <!-- 女生按鈕 -->
-            <button onclick="openModal('girl')" class="group relative flex items-center space-x-2 px-4 py-2 bg-pink-500 rounded-full text-white shadow-lg active:scale-95 transition overflow-hidden">
-                <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
-                    <img src="./girl01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-girl'); this.parentElement.innerText='G'">
-                </div>
-                <span class="font-bold text-sm">女生</span>
+    <!-- 2. 底部控制列 (功能增多，改為雙層或更緊湊) -->
+    <div class="flex-shrink-0 bg-slate-800/95 backdrop-blur p-2 md:p-3 flex flex-col gap-2 border-t border-slate-700 z-50 shadow-2xl">
+        
+        <!-- 第一排：主要操作 -->
+        <div class="flex justify-between items-center w-full">
+            <div class="flex space-x-2">
+                <button onclick="openModal('boy')" class="flex items-center space-x-1 px-3 py-2 bg-blue-600 rounded-full text-white shadow active:scale-95 text-sm md:text-base">
+                    <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
+                        <img src="./boy01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-boy'); this.parentElement.innerText='B'">
+                    </div>
+                    <span>男生</span>
+                </button>
+                <button onclick="openModal('girl')" class="flex items-center space-x-1 px-3 py-2 bg-pink-500 rounded-full text-white shadow active:scale-95 text-sm md:text-base">
+                    <div class="w-6 h-6 rounded-full bg-white/20 border border-white/50 overflow-hidden relative">
+                        <img src="./girl01.png" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.classList.add('fallback-avatar-girl'); this.parentElement.innerText='G'">
+                    </div>
+                    <span>女生</span>
+                </button>
+            </div>
+
+            <!-- AI 背景按鈕 -->
+            <button onclick="openAIModal()" class="px-3 py-2 bg-purple-600 text-white rounded-full text-sm font-bold shadow active:scale-95 flex items-center gap-1 border border-purple-400">
+                <span>✨ AI 背景</span>
             </button>
         </div>
 
-        <button onclick="saveWall()" class="px-5 py-2 bg-emerald-600 text-white rounded-full font-bold text-sm shadow-lg active:scale-95 flex items-center gap-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            存檔
-        </button>
+        <!-- 第二排：工具列 -->
+        <div class="flex justify-between items-center w-full border-t border-slate-600 pt-2">
+            <div class="flex space-x-2">
+                <button onclick="downloadData()" class="px-3 py-1 bg-slate-600 text-gray-200 rounded text-xs hover:bg-slate-500">
+                    💾 儲存進度
+                </button>
+                <button onclick="document.getElementById('load-file-input').click()" class="px-3 py-1 bg-slate-600 text-gray-200 rounded text-xs hover:bg-slate-500">
+                    📂 讀取
+                </button>
+            </div>
+            <button onclick="saveWall()" class="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-bold flex items-center gap-1">
+                📷 截圖下載
+            </button>
+        </div>
     </div>
 
-    <!-- 3. 輸入彈窗 -->
+    <!-- 3. 留言輸入彈窗 -->
     <div id="modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
         <div id="modal-box" class="bg-slate-800 w-[90%] max-w-md p-5 rounded-2xl shadow-2xl transform scale-95 transition-transform">
             <div class="flex justify-between items-center mb-4 text-white">
@@ -111,37 +123,54 @@
         </div>
     </div>
 
+    <!-- 4. AI 背景生成彈窗 -->
+    <div id="ai-modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 w-[90%] max-w-md p-6 rounded-2xl shadow-2xl border border-purple-500/30">
+            <h3 class="text-white font-bold text-lg mb-2">✨ AI 生成背景</h3>
+            <p class="text-gray-400 text-xs mb-4">輸入英文描述詞（例如: galaxy, crystal castle, romantic night sky）</p>
+            
+            <input type="text" id="ai-prompt" class="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white mb-4" placeholder="輸入關鍵字 (建議英文)..." value="Crystal palace fantasy scenery">
+            
+            <div class="flex gap-2">
+                <button onclick="closeAIModal()" class="flex-1 py-2 bg-gray-600 text-white rounded-lg">取消</button>
+                <button onclick="generateBackground()" class="flex-1 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold shadow-lg">開始生成</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading -->
     <div id="loading" class="fixed inset-0 bg-black/90 z-[200] hidden flex flex-col items-center justify-center">
         <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-        <p class="text-white">處理中...</p>
+        <p class="text-white" id="loading-text">處理中...</p>
     </div>
 
     <script>
-        // ★★★ 這裡設定您的圖片檔名，請確認大小寫完全一致 ★★★
-        const IMG_BG = './1000219100.jpg';
+        // 設定
+        const IMG_BG_DEFAULT = './1000219100.jpg';
         const IMG_BOY = './boy01.png';
         const IMG_GIRL = './girl01.png';
 
         let currentRole = 'boy';
         let zIndex = 100;
+        let messagesData = []; // 用於儲存所有留言資料，方便存檔
 
         // 初始化
         window.onload = function() {
-            // 設定背景，如果讀取失敗就不會是一片黑，而是原本的漸層
-            const img = new Image();
-            img.src = IMG_BG;
-            img.onload = () => {
-                document.getElementById('message-wall').style.backgroundImage = `url('${IMG_BG}')`;
-            };
-            
-            // 產生兩個預設留言測試
-            setTimeout(() => {
-                createCard('boy', "希望大家玩的愉快 ✨", window.innerWidth * 0.1, 100);
-                createCard('girl', "希望大家心想事成", window.innerWidth * 0.15, 250);
-            }, 500);
+            setBg(IMG_BG_DEFAULT);
+            // 預設不產生測試留言，讓使用者自己發揮，或讀取存檔
         };
 
+        function setBg(url) {
+            const wall = document.getElementById('message-wall');
+            // 預先載入圖片避免閃爍
+            const img = new Image();
+            img.src = url;
+            img.onload = () => {
+                wall.style.backgroundImage = `url('${url}')`;
+            };
+        }
+
+        // --- 留言相關 ---
         function openModal(role) {
             currentRole = role;
             const modal = document.getElementById('modal');
@@ -151,18 +180,13 @@
             
             document.getElementById('msg-input').value = '';
             modal.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                modal.classList.remove('opacity-0');
-                box.classList.remove('scale-95');
-            });
+            setTimeout(() => { modal.classList.remove('opacity-0'); box.classList.remove('scale-95'); }, 10);
 
-            // 動態設定彈窗內容
             const isBoy = role === 'boy';
             const imgSrc = isBoy ? IMG_BOY : IMG_GIRL;
             const fallbackClass = isBoy ? 'fallback-avatar-boy' : 'fallback-avatar-girl';
             const label = isBoy ? 'B' : 'G';
             
-            // 這裡的 img 標籤也加了 onerror，彈窗裡也不會破圖
             title.innerHTML = `
                 <div class="w-8 h-8 rounded-full overflow-hidden border border-white bg-gray-500 flex items-center justify-center ${fallbackClass}">
                     <img src="${imgSrc}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerText='${label}'">
@@ -170,15 +194,13 @@
                 <span>${isBoy ? '男生留言' : '女生留言'}</span>
             `;
             preview.className = `p-4 rounded-xl mb-4 min-h-[100px] transition-colors ${isBoy ? 'card-boy' : 'card-girl'}`;
-            
             document.getElementById('msg-input').focus();
         }
 
         function closeModal() {
             const modal = document.getElementById('modal');
-            const box = document.getElementById('modal-box');
             modal.classList.add('opacity-0');
-            box.classList.add('scale-95');
+            document.getElementById('modal-box').classList.add('scale-95');
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
@@ -193,48 +215,86 @@
             if(!txt) return;
             
             // 隨機位置
-            const x = Math.random() * (window.innerWidth - 250);
+            const x = Math.random() * (window.innerWidth - 220);
             const y = Math.random() * (window.innerHeight - 300) + 50;
             
-            createCard(currentRole, txt, Math.max(20, x), Math.max(50, y));
+            const msgObj = {
+                id: Date.now(),
+                role: currentRole,
+                text: txt,
+                x: Math.max(20, x),
+                y: Math.max(50, y),
+                zIndex: zIndex++
+            };
+            
+            createCardElement(msgObj);
+            messagesData.push(msgObj); // 加入資料庫
             closeModal();
         }
 
-        function createCard(role, text, x, y) {
-            const el = document.createElement('div');
-            const isBoy = role === 'boy';
+        function deleteMsg(id) {
+            // 刪除功能
+            if(!confirm('確定要刪除這則留言嗎？')) return;
             
-            el.className = `message-card absolute p-4 rounded-xl w-64 flex flex-col ${isBoy ? 'card-boy' : 'card-girl'}`;
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
-            el.style.zIndex = zIndex++;
+            const el = document.querySelector(`.message-card[data-id="${id}"]`);
+            if(el) {
+                // 加入淡出動畫
+                el.style.transform = 'scale(0.5)';
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 200);
+            }
+            
+            // 從資料陣列中移除
+            messagesData = messagesData.filter(m => m.id !== id);
+        }
+
+        function createCardElement(data) {
+            const el = document.createElement('div');
+            const isBoy = data.role === 'boy';
+            
+            el.className = `message-card absolute p-4 rounded-xl w-60 md:w-64 flex flex-col group ${isBoy ? 'card-boy' : 'card-girl'}`;
+            el.style.left = data.x + 'px';
+            el.style.top = data.y + 'px';
+            el.style.zIndex = data.zIndex;
+            el.dataset.id = data.id; // 綁定 ID
 
             const imgSrc = isBoy ? IMG_BOY : IMG_GIRL;
             const name = isBoy ? '帥氣男' : '可愛女';
             const fallbackClass = isBoy ? 'fallback-avatar-boy' : 'fallback-avatar-girl';
             const label = isBoy ? 'B' : 'G';
 
-            // 這裡也加了防呆機制，卡片頭像不會破圖
+            // 加入刪除按鈕 (使用絕對定位放在右上角)
+            // 注意：加上 stopPropagation 防止點擊刪除時觸發拖曳
             el.innerHTML = `
+                <button onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="deleteMsg(${data.id})" 
+                    class="absolute -top-2 -right-2 w-6 h-6 bg-slate-700 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-500 transition-colors z-50 opacity-80 hover:opacity-100" 
+                    title="刪除留言">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
                 <div class="flex items-center mb-2 border-b border-black/10 pb-1 pointer-events-none">
                     <div class="w-8 h-8 rounded-full overflow-hidden border border-white bg-gray-400 mr-2 flex items-center justify-center ${fallbackClass}">
                         <img src="${imgSrc}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentElement.innerText='${label}'">
                     </div>
                     <span class="font-bold text-sm opacity-90">來自 ${name}</span>
                 </div>
-                <p class="text-sm leading-relaxed font-handwriting whitespace-pre-wrap pointer-events-none">${text}</p>
+                <p class="text-sm leading-relaxed font-handwriting whitespace-pre-wrap pointer-events-none">${data.text}</p>
             `;
 
             document.getElementById('cards-container').appendChild(el);
             setupDrag(el);
         }
 
-        // 拖曳功能
+        // --- 拖曳系統 ---
         function setupDrag(el) {
             let isDown = false;
             let offX, offY;
 
             const start = (e) => {
+                // 如果點擊的是按鈕，不啟動拖曳 (雖然已經有 stopPropagation，雙重保險)
+                if(e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
                 isDown = true;
                 el.style.zIndex = ++zIndex;
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -248,8 +308,17 @@
                 e.preventDefault();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                el.style.left = (clientX - offX) + 'px';
-                el.style.top = (clientY - offY) + 'px';
+                
+                let newX = clientX - offX;
+                let newY = clientY - offY;
+                
+                el.style.left = newX + 'px';
+                el.style.top = newY + 'px';
+
+                // 更新資料庫中的位置
+                const id = Number(el.dataset.id);
+                const msg = messagesData.find(m => m.id === id);
+                if(msg) { msg.x = newX; msg.y = newY; msg.zIndex = zIndex; }
             };
 
             const end = () => { isDown = false; };
@@ -262,25 +331,108 @@
             window.addEventListener('touchend', end);
         }
 
+        // --- 功能：存檔與讀檔 ---
+        function downloadData() {
+            if(messagesData.length === 0) { alert('目前沒有留言可以儲存喔！'); return; }
+            const dataStr = JSON.stringify(messagesData);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `留言存檔_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function handleLoadFile(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(Array.isArray(data)) {
+                        // 清空現有畫面
+                        document.getElementById('cards-container').innerHTML = '';
+                        messagesData = data;
+                        // 重新繪製
+                        data.forEach(msg => createCardElement(msg));
+                        alert('讀取成功！');
+                    }
+                } catch(err) {
+                    alert('檔案格式錯誤，讀取失敗。');
+                }
+            };
+            reader.readAsText(file);
+            // 清空 input 讓同個檔案可以再選一次
+            input.value = ''; 
+        }
+
+        // --- 功能：AI 生圖 ---
+        function openAIModal() {
+            const modal = document.getElementById('ai-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        }
+
+        function closeAIModal() {
+            const modal = document.getElementById('ai-modal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function generateBackground() {
+            const prompt = document.getElementById('ai-prompt').value;
+            if(!prompt) return;
+
+            closeAIModal();
+            const loading = document.getElementById('loading');
+            document.getElementById('loading-text').innerText = "AI 正在繪製背景...";
+            loading.classList.remove('hidden');
+
+            // 使用 Pollinations.ai (免費/無須 Key)
+            // 隨機亂數避免快取
+            const seed = Math.floor(Math.random() * 1000);
+            // 編碼提示詞
+            const encodedPrompt = encodeURIComponent(prompt + ", high quality, detailed, anime style background, 8k");
+            const aiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=1200&seed=${seed}&nologo=true`;
+
+            const img = new Image();
+            img.onload = function() {
+                document.getElementById('message-wall').style.backgroundImage = `url('${aiUrl}')`;
+                loading.classList.add('hidden');
+            };
+            img.onerror = function() {
+                alert('AI 生成失敗，請稍後再試或檢查網路。');
+                loading.classList.add('hidden');
+            };
+            img.src = aiUrl;
+        }
+
+        // --- 功能：截圖存檔 ---
         function saveWall() {
             const loading = document.getElementById('loading');
+            document.getElementById('loading-text').innerText = "正在製作圖片...";
             loading.classList.remove('hidden');
             
-            // 隱藏控制列
             const controls = document.querySelector('.flex-shrink-0');
-            controls.style.display = 'none';
+            controls.style.display = 'none'; // 隱藏控制列
             
             const wall = document.getElementById('message-wall');
             
             html2canvas(wall, {
-                useCORS: true,
-                scale: 2, // 高畫質
+                useCORS: true, // 這對 AI 圖片很重要
+                scale: 2,
+                allowTaint: true,
                 backgroundColor: '#0f172a'
             }).then(canvas => {
                 const a = document.createElement('a');
-                a.download = `留言牆_${Date.now()}.png`;
+                a.download = `留言牆截圖_${Date.now()}.png`;
                 a.href = canvas.toDataURL();
                 a.click();
+            }).catch(err => {
+                console.error(err);
+                alert("圖片生成失敗 (可能是跨域圖片限制)，請嘗試使用手機自帶截圖功能。");
             }).finally(() => {
                 controls.style.display = 'flex';
                 loading.classList.add('hidden');
