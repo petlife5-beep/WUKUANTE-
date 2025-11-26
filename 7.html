@@ -1,0 +1,460 @@
+import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
+import * as THREE from 'three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Environment, Float, PerspectiveCamera, useTexture } from '@react-three/drei';
+import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import { BlendFunction } from 'postprocessing';
+import { Sparkles, Gift, Move3d } from 'lucide-react';
+
+// --- Arix Signature 调色板 ---
+const PALETTE = {
+  EMERALD_DARK: '#001a10',
+  EMERALD_LIGHT: '#004225',
+  GOLD_METALLIC: '#FFD700',
+  GOLD_ROSE: '#E6BE8A',
+  PLATINUM: '#E5E4E2',
+  ACCENT_RED: '#8a0f0f'
+};
+
+// --- 数学工具函数 ---
+
+// 在圆锥体表面生成点 (Tree Shape)
+const getConePoint = (radius: number, height: number, yPos: number) => {
+  const r = (yPos / height) * radius;
+  const theta = Math.random() * Math.PI * 2;
+  const x = r * Math.cos(theta);
+  const z = r * Math.sin(theta);
+  return new THREE.Vector3(x, height - yPos - height / 2, z);
+};
+
+// 在球体内部/表面生成点 (Scatter Shape)
+const getSpherePoint = (radius: number) => {
+  const u = Math.random();
+  const v = Math.random();
+  const theta = 2 * Math.PI * u;
+  const phi = Math.acos(2 * v - 1);
+  const r = radius * Math.cbrt(Math.random()); // Cube root for uniform distribution
+  const sinPhi = Math.sin(phi);
+  const x = r * sinPhi * Math.cos(theta);
+  const y = r * sinPhi * Math.sin(theta);
+  const z = r * Math.cos(phi);
+  return new THREE.Vector3(x, y, z);
+};
+
+// --- Shader: 魔法针叶 ---
+// 允许粒子在两个位置之间变形，并带有金属边缘光泽
+const FoliageShaderMaterial = {
+  uniforms: {
+    uTime: { value: 0 },
+    uMix: { value: 0 }, // 0 = Scatter, 1 = Tree
+    uColorBase: { value: new THREE.Color(PALETTE.EMERALD_LIGHT) },
+    uColorGlow: { value: new THREE.Color(PALETTE.GOLD_METALLIC) },
+    uPixelRatio: { value: 1 }
+  },
+  vertexShader: `
+    uniform float uTime;
+    uniform float uMix;
+    uniform float uPixelRatio;
+    
+    attribute vec3 aPositionTree;
+    attribute vec3 aPositionScatter;
+    attribute float aSize;
+    attribute float aRandom;
+    
+    varying float vAlpha;
+    varying vec2 vUv;
+    varying float vRandom;
+
+    void main() {
+      vUv = uv;
+      vRandom = aRandom;
+
+      // Cubic easing for smoother transition
+      float t = uMix;
+      float ease = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0;
+
+      // Interpolate position
+      vec3 pos = mix(aPositionScatter, aPositionTree, ease);
+
+      // "Breathing" effect: more chaotic when scattered, subtle wave when tree
+      float breath = sin(uTime * 2.0 + aRandom * 10.0) * 0.1;
+      pos.y += breath * (1.0 - ease * 0.8); // Less movement when stable tree
+      
+      // Spiral rotation effect during transition
+      float rotAngle = (1.0 - ease) * aRandom * 5.0;
+      float c = cos(rotAngle);
+      float s = sin(rotAngle);
+      mat2 rot = mat2(c, -s, s, c);
+      pos.xz = rot * pos.xz;
+
+      vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+      gl_Position = projectionMatrix * mvPosition;
+      
+      // Size attenuation
+      gl_PointSize = aSize * uPixelRatio * (200.0 / -mvPosition.z);
+      
+      // Fade out when scattered to avoid visual clutter
+      vAlpha = 0.6 + 0.4 * ease;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColorBase;
+    uniform vec3 uColorGlow;
+    
+    varying float vAlpha;
+    varying float vRandom;
+
+    void main() {
+      // Circular particle
+      vec2 center = gl_PointCoord - 0.5;
+      float dist = length(center);
+      if (dist > 0.5) discard;
+
+      // Gradient from center (green) to edge (gold glow)
+      float glow = smoothstep(0.0, 0.5, dist);
+      vec3 finalColor = mix(uColorBase, uColorGlow, glow * 0.8);
+      
+      // Add some sparkle variation
+      finalColor += vec3(0.2) * step(0.9, vRandom);
+
+      gl_FragColor = vec4(finalColor, vAlpha * (1.0 - dist * 1.5));
+    }
+  `
+};
+
+// --- 组件: 针叶系统 ---
+const Foliage = ({ active }: { active: boolean }) => {
+  const count = 4000;
+  const meshRef = useRef<THREE.Points>(null!);
+  const materialRef = useRef<THREE.ShaderMaterial>(null!);
+
+  const [positionsTree, positionsScatter, randoms, sizes] = useMemo(() => {
+    const pTree = new Float32Array(count * 3);
+    const pScatter = new Float32Array(count * 3);
+    const rands = new Float32Array(count);
+    const sz = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      // Tree Shape: Cone (Radius 0 to 4.5, Height 12)
+      // Distribution: More points at bottom
+      const yNorm = Math.pow(Math.random(), 0.8); // Bias slightly downwards
+      const height = 14;
+      const yPos = yNorm * height;
+      const radius = (yPos / height) * 5.5; 
+      
+      const treeVec = getConePoint(radius, height, yPos);
+      pTree[i * 3] = treeVec.x;
+      pTree[i * 3 + 1] = treeVec.y;
+      pTree[i * 3 + 2] = treeVec.z;
+
+      // Scatter Shape: Sphere Radius 15
+      const scatterVec = getSpherePoint(18);
+      pScatter[i * 3] = scatterVec.x;
+      pScatter[i * 3 + 1] = scatterVec.y;
+      pScatter[i * 3 + 2] = scatterVec.z;
+
+      rands[i] = Math.random();
+      sz[i] = Math.random() * 2.5 + 0.5;
+    }
+    return [pTree, pScatter, rands, sz];
+  }, []);
+
+  useFrame((state) => {
+    if (materialRef.current) {
+      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+      // Smooth interpolation for uMix
+      const target = active ? 1 : 0;
+      materialRef.current.uniforms.uMix.value = THREE.MathUtils.lerp(
+        materialRef.current.uniforms.uMix.value,
+        target,
+        0.02
+      );
+    }
+  });
+
+  return (
+    <points ref={meshRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={count} array={positionsTree} itemSize={3} />
+        <bufferAttribute attach="attributes-aPositionTree" count={count} array={positionsTree} itemSize={3} />
+        <bufferAttribute attach="attributes-aPositionScatter" count={count} array={positionsScatter} itemSize={3} />
+        <bufferAttribute attach="attributes-aRandom" count={count} array={randoms} itemSize={1} />
+        <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
+      </bufferGeometry>
+      <shaderMaterial
+        ref={materialRef}
+        args={[FoliageShaderMaterial]}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  );
+};
+
+// --- 组件: 装饰物 (InstancedMesh) ---
+const Ornaments = ({ active }: { active: boolean }) => {
+  const count = 250;
+  const meshRef = useRef<THREE.InstancedMesh>(null!);
+  const tempObj = new THREE.Object3D();
+  
+  // Data for each instance
+  const data = useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => {
+      // Tree Position
+      const yNorm = Math.pow(Math.random(), 0.9);
+      const height = 13;
+      const yPos = yNorm * height;
+      const radius = (yPos / height) * 5.0 + 0.5; // Offset slightly outward from leaves
+      
+      // Spiral logic for ornaments
+      const theta = yPos * 2.5 + (i % 5) * (Math.PI * 2 / 5);
+      const xT = radius * Math.cos(theta);
+      const zT = radius * Math.sin(theta);
+      const treePos = new THREE.Vector3(xT, height - yPos - height/2, zT);
+
+      // Scatter Position
+      const scatterPos = getSpherePoint(20);
+
+      const scale = Math.random() * 0.4 + 0.2;
+      const type = Math.random() > 0.7 ? 'box' : 'sphere'; // 30% boxes, 70% spheres
+      
+      return { treePos, scatterPos, scale, type, speed: Math.random() * 0.5 + 0.2 };
+    });
+  }, []);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const targetMix = active ? 1 : 0;
+    
+    // We use a simpler global lerp factor for JS calculation, but apply it per instance
+    // Ideally use a ref to store current mix value
+    const currentMix = THREE.MathUtils.lerp(
+        (meshRef.current as any).userData.mix || 0,
+        targetMix,
+        0.015
+    );
+    (meshRef.current as any).userData.mix = currentMix;
+
+    data.forEach((d, i) => {
+      // Interpolate position
+      const pos = new THREE.Vector3().lerpVectors(d.scatterPos, d.treePos, currentMix);
+      
+      // Add wobble
+      const wobble = active ? 0.1 : 2.0;
+      pos.y += Math.sin(t * d.speed + i) * wobble * (1 - currentMix * 0.8);
+
+      // Rotation
+      tempObj.position.copy(pos);
+      tempObj.scale.setScalar(d.scale * (0.5 + 0.5 * currentMix)); // Smaller when scattered
+      tempObj.rotation.set(
+        t * d.speed, 
+        t * d.speed * 0.5, 
+        t * d.speed * 0.2
+      );
+      
+      tempObj.updateMatrix();
+      meshRef.current.setMatrixAt(i, tempObj.matrix);
+      
+      // Dynamic color (optional, requires custom instance color buffer, skipping for simplicity but using metalness)
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} castShadow receiveShadow>
+      <sphereGeometry args={[1, 16, 16]} />
+      <meshStandardMaterial 
+        color={PALETTE.GOLD_METALLIC}
+        roughness={0.15}
+        metalness={0.9}
+        emissive={PALETTE.GOLD_ROSE}
+        emissiveIntensity={0.2}
+      />
+    </instancedMesh>
+  );
+};
+
+// --- 组件: 顶部星星 ---
+const StarTopper = ({ active }: { active: boolean }) => {
+  const ref = useRef<THREE.Group>(null!);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    const targetScale = active ? 1.5 : 0.01;
+    
+    // Scale animation
+    ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.02);
+    
+    // Rotation
+    ref.current.rotation.y = t * 0.5;
+    ref.current.rotation.z = Math.sin(t) * 0.1;
+  });
+
+  return (
+    <group ref={ref} position={[0, 7.5, 0]}>
+      <mesh castShadow>
+        <octahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial 
+          color="#FFFFFF" 
+          emissive="#FFFFFF" 
+          emissiveIntensity={2} 
+          toneMapped={false} 
+        />
+      </mesh>
+      {/* Light coming from the star */}
+      <pointLight distance={10} intensity={2} color={PALETTE.GOLD_METALLIC} />
+    </group>
+  );
+};
+
+// --- 场景主逻辑 ---
+const Scene = ({ active }: { active: boolean }) => {
+  const { size } = useThree();
+
+  return (
+    <>
+      <PerspectiveCamera makeDefault position={[0, 2, 22]} fov={45} />
+      <OrbitControls 
+        enablePan={false} 
+        minPolarAngle={Math.PI / 3} 
+        maxPolarAngle={Math.PI / 1.8}
+        minDistance={10}
+        maxDistance={30}
+        autoRotate={active}
+        autoRotateSpeed={0.5}
+      />
+
+      {/* Lighting: Cinematic & Moody */}
+      <ambientLight intensity={0.2} color={PALETTE.EMERALD_DARK} />
+      <spotLight 
+        position={[10, 20, 10]} 
+        angle={0.2} 
+        penumbra={1} 
+        intensity={200} 
+        color={PALETTE.GOLD_ROSE} 
+        castShadow 
+      />
+      <spotLight 
+        position={[-10, 5, 10]} 
+        angle={0.5} 
+        penumbra={1} 
+        intensity={100} 
+        color="#ffffff" 
+      />
+      
+      {/* HDRI Environment for reflections */}
+      <Environment preset="city" />
+
+      {/* Main Elements */}
+      <group position={[0, -2, 0]}>
+        <Foliage active={active} />
+        <Ornaments active={active} />
+        <StarTopper active={active} />
+      </group>
+
+      {/* Post Processing */}
+      <EffectComposer disableNormalPass>
+        <Bloom 
+          luminanceThreshold={0.8} 
+          mipmapBlur 
+          intensity={1.5} 
+          radius={0.4}
+        />
+        <Vignette eskil={false} offset={0.1} darkness={1.1} />
+      </EffectComposer>
+    </>
+  );
+};
+
+// --- 主 UI 组件 ---
+const UI = ({ active, setActive }: { active: boolean, setActive: (v: boolean) => void }) => {
+  return (
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 md:p-12 z-10 text-white select-none">
+      {/* Header */}
+      <div className="flex flex-col items-center md:items-start space-y-2 opacity-0 animate-fade-in" style={{animationDelay: '0.5s', animationFillMode: 'forwards'}}>
+        <h1 className="text-4xl md:text-6xl font-serif tracking-tighter text-[#E6BE8A] drop-shadow-[0_0_15px_rgba(230,190,138,0.5)]">
+          ARIX
+        </h1>
+        <div className="h-[1px] w-24 bg-gradient-to-r from-[#E6BE8A] to-transparent"></div>
+        <p className="text-xs md:text-sm font-light tracking-[0.3em] uppercase text-emerald-100/60">
+          Signature Interactive Holiday
+        </p>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-col items-center space-y-6 pb-8">
+        <button
+          onClick={() => setActive(!active)}
+          className={`
+            pointer-events-auto group relative px-10 py-4 
+            border transition-all duration-700 ease-out
+            overflow-hidden
+            ${active 
+              ? 'border-[#E6BE8A] bg-[#E6BE8A]/10' 
+              : 'border-white/20 bg-transparent hover:border-white/50'
+            }
+          `}
+        >
+          {/* Background Fill Animation */}
+          <div className={`
+            absolute inset-0 bg-[#E6BE8A] origin-left transition-transform duration-500
+            ${active ? 'scale-x-0' : 'scale-x-0 group-hover:scale-x-100'}
+            opacity-10
+          `}></div>
+
+          <div className="flex items-center space-x-3 relative z-10">
+            {active ? (
+              <Move3d className="w-4 h-4 text-[#E6BE8A]" />
+            ) : (
+              <Sparkles className="w-4 h-4 text-[#E6BE8A]" />
+            )}
+            <span className={`
+              font-sans font-bold tracking-[0.2em] text-sm
+              ${active ? 'text-[#E6BE8A]' : 'text-white'}
+            `}>
+              {active ? 'RELEASE' : 'ASSEMBLE'}
+            </span>
+          </div>
+        </button>
+
+        <p className="text-[10px] text-emerald-100/30 tracking-widest font-light">
+          {active ? 'STATUS: CONVERGED' : 'STATUS: AWAITING INPUT'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [active, setActive] = useState(false);
+
+  // CSS for simple fade in animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      .animate-fade-in { animation: fade-in 1s ease-out; }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
+  return (
+    <div className="w-full h-screen bg-[#000502] relative overflow-hidden">
+      <UI active={active} setActive={setActive} />
+      
+      <Canvas 
+        shadows 
+        dpr={[1, 2]} 
+        gl={{ 
+          antialias: false, // Tone mapping handled by postprocessing or default
+          toneMapping: THREE.ReinhardToneMapping,
+          toneMappingExposure: 1.5
+        }}
+      >
+        <Scene active={active} />
+      </Canvas>
+    </div>
+  );
+}
