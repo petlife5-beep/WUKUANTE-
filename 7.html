@@ -1,460 +1,414 @@
-import React, { useState, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
-import * as THREE from 'three';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, Float, PerspectiveCamera, useTexture } from '@react-three/drei';
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
-import { Sparkles, Gift, Move3d } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arix Signature Interactive Christmas Tree</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000502; height: 100%; width: 100%; }
+        #root { width: 100%; height: 100%; }
+        
+        /* 自定義動畫 */
+        @keyframes fade-in { 
+            from { opacity: 0; transform: translateY(-10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade-in { animation: fade-in 1.2s ease-out forwards; }
+        
+        /* 字體優化 */
+        .font-serif { font-family: 'Times New Roman', Times, serif; }
+        .font-sans { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
 
-// --- Arix Signature 调色板 ---
-const PALETTE = {
-  EMERALD_DARK: '#001a10',
-  EMERALD_LIGHT: '#004225',
-  GOLD_METALLIC: '#FFD700',
-  GOLD_ROSE: '#E6BE8A',
-  PLATINUM: '#E5E4E2',
-  ACCENT_RED: '#8a0f0f'
-};
-
-// --- 数学工具函数 ---
-
-// 在圆锥体表面生成点 (Tree Shape)
-const getConePoint = (radius: number, height: number, yPos: number) => {
-  const r = (yPos / height) * radius;
-  const theta = Math.random() * Math.PI * 2;
-  const x = r * Math.cos(theta);
-  const z = r * Math.sin(theta);
-  return new THREE.Vector3(x, height - yPos - height / 2, z);
-};
-
-// 在球体内部/表面生成点 (Scatter Shape)
-const getSpherePoint = (radius: number) => {
-  const u = Math.random();
-  const v = Math.random();
-  const theta = 2 * Math.PI * u;
-  const phi = Math.acos(2 * v - 1);
-  const r = radius * Math.cbrt(Math.random()); // Cube root for uniform distribution
-  const sinPhi = Math.sin(phi);
-  const x = r * sinPhi * Math.cos(theta);
-  const y = r * sinPhi * Math.sin(theta);
-  const z = r * Math.cos(phi);
-  return new THREE.Vector3(x, y, z);
-};
-
-// --- Shader: 魔法针叶 ---
-// 允许粒子在两个位置之间变形，并带有金属边缘光泽
-const FoliageShaderMaterial = {
-  uniforms: {
-    uTime: { value: 0 },
-    uMix: { value: 0 }, // 0 = Scatter, 1 = Tree
-    uColorBase: { value: new THREE.Color(PALETTE.EMERALD_LIGHT) },
-    uColorGlow: { value: new THREE.Color(PALETTE.GOLD_METALLIC) },
-    uPixelRatio: { value: 1 }
-  },
-  vertexShader: `
-    uniform float uTime;
-    uniform float uMix;
-    uniform float uPixelRatio;
-    
-    attribute vec3 aPositionTree;
-    attribute vec3 aPositionScatter;
-    attribute float aSize;
-    attribute float aRandom;
-    
-    varying float vAlpha;
-    varying vec2 vUv;
-    varying float vRandom;
-
-    void main() {
-      vUv = uv;
-      vRandom = aRandom;
-
-      // Cubic easing for smoother transition
-      float t = uMix;
-      float ease = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0;
-
-      // Interpolate position
-      vec3 pos = mix(aPositionScatter, aPositionTree, ease);
-
-      // "Breathing" effect: more chaotic when scattered, subtle wave when tree
-      float breath = sin(uTime * 2.0 + aRandom * 10.0) * 0.1;
-      pos.y += breath * (1.0 - ease * 0.8); // Less movement when stable tree
-      
-      // Spiral rotation effect during transition
-      float rotAngle = (1.0 - ease) * aRandom * 5.0;
-      float c = cos(rotAngle);
-      float s = sin(rotAngle);
-      mat2 rot = mat2(c, -s, s, c);
-      pos.xz = rot * pos.xz;
-
-      vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-      gl_Position = projectionMatrix * mvPosition;
-      
-      // Size attenuation
-      gl_PointSize = aSize * uPixelRatio * (200.0 / -mvPosition.z);
-      
-      // Fade out when scattered to avoid visual clutter
-      vAlpha = 0.6 + 0.4 * ease;
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColorBase;
-    uniform vec3 uColorGlow;
-    
-    varying float vAlpha;
-    varying float vRandom;
-
-    void main() {
-      // Circular particle
-      vec2 center = gl_PointCoord - 0.5;
-      float dist = length(center);
-      if (dist > 0.5) discard;
-
-      // Gradient from center (green) to edge (gold glow)
-      float glow = smoothstep(0.0, 0.5, dist);
-      vec3 finalColor = mix(uColorBase, uColorGlow, glow * 0.8);
-      
-      // Add some sparkle variation
-      finalColor += vec3(0.2) * step(0.9, vRandom);
-
-      gl_FragColor = vec4(finalColor, vAlpha * (1.0 - dist * 1.5));
-    }
-  `
-};
-
-// --- 组件: 针叶系统 ---
-const Foliage = ({ active }: { active: boolean }) => {
-  const count = 4000;
-  const meshRef = useRef<THREE.Points>(null!);
-  const materialRef = useRef<THREE.ShaderMaterial>(null!);
-
-  const [positionsTree, positionsScatter, randoms, sizes] = useMemo(() => {
-    const pTree = new Float32Array(count * 3);
-    const pScatter = new Float32Array(count * 3);
-    const rands = new Float32Array(count);
-    const sz = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) {
-      // Tree Shape: Cone (Radius 0 to 4.5, Height 12)
-      // Distribution: More points at bottom
-      const yNorm = Math.pow(Math.random(), 0.8); // Bias slightly downwards
-      const height = 14;
-      const yPos = yNorm * height;
-      const radius = (yPos / height) * 5.5; 
-      
-      const treeVec = getConePoint(radius, height, yPos);
-      pTree[i * 3] = treeVec.x;
-      pTree[i * 3 + 1] = treeVec.y;
-      pTree[i * 3 + 2] = treeVec.z;
-
-      // Scatter Shape: Sphere Radius 15
-      const scatterVec = getSpherePoint(18);
-      pScatter[i * 3] = scatterVec.x;
-      pScatter[i * 3 + 1] = scatterVec.y;
-      pScatter[i * 3 + 2] = scatterVec.z;
-
-      rands[i] = Math.random();
-      sz[i] = Math.random() * 2.5 + 0.5;
-    }
-    return [pTree, pScatter, rands, sz];
-  }, []);
-
-  useFrame((state) => {
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
-      // Smooth interpolation for uMix
-      const target = active ? 1 : 0;
-      materialRef.current.uniforms.uMix.value = THREE.MathUtils.lerp(
-        materialRef.current.uniforms.uMix.value,
-        target,
-        0.02
-      );
-    }
-  });
-
-  return (
-    <points ref={meshRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positionsTree} itemSize={3} />
-        <bufferAttribute attach="attributes-aPositionTree" count={count} array={positionsTree} itemSize={3} />
-        <bufferAttribute attach="attributes-aPositionScatter" count={count} array={positionsScatter} itemSize={3} />
-        <bufferAttribute attach="attributes-aRandom" count={count} array={randoms} itemSize={1} />
-        <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
-      </bufferGeometry>
-      <shaderMaterial
-        ref={materialRef}
-        args={[FoliageShaderMaterial]}
-        transparent
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-};
-
-// --- 组件: 装饰物 (InstancedMesh) ---
-const Ornaments = ({ active }: { active: boolean }) => {
-  const count = 250;
-  const meshRef = useRef<THREE.InstancedMesh>(null!);
-  const tempObj = new THREE.Object3D();
-  
-  // Data for each instance
-  const data = useMemo(() => {
-    return Array.from({ length: count }).map((_, i) => {
-      // Tree Position
-      const yNorm = Math.pow(Math.random(), 0.9);
-      const height = 13;
-      const yPos = yNorm * height;
-      const radius = (yPos / height) * 5.0 + 0.5; // Offset slightly outward from leaves
-      
-      // Spiral logic for ornaments
-      const theta = yPos * 2.5 + (i % 5) * (Math.PI * 2 / 5);
-      const xT = radius * Math.cos(theta);
-      const zT = radius * Math.sin(theta);
-      const treePos = new THREE.Vector3(xT, height - yPos - height/2, zT);
-
-      // Scatter Position
-      const scatterPos = getSpherePoint(20);
-
-      const scale = Math.random() * 0.4 + 0.2;
-      const type = Math.random() > 0.7 ? 'box' : 'sphere'; // 30% boxes, 70% spheres
-      
-      return { treePos, scatterPos, scale, type, speed: Math.random() * 0.5 + 0.2 };
-    });
-  }, []);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const targetMix = active ? 1 : 0;
-    
-    // We use a simpler global lerp factor for JS calculation, but apply it per instance
-    // Ideally use a ref to store current mix value
-    const currentMix = THREE.MathUtils.lerp(
-        (meshRef.current as any).userData.mix || 0,
-        targetMix,
-        0.015
-    );
-    (meshRef.current as any).userData.mix = currentMix;
-
-    data.forEach((d, i) => {
-      // Interpolate position
-      const pos = new THREE.Vector3().lerpVectors(d.scatterPos, d.treePos, currentMix);
-      
-      // Add wobble
-      const wobble = active ? 0.1 : 2.0;
-      pos.y += Math.sin(t * d.speed + i) * wobble * (1 - currentMix * 0.8);
-
-      // Rotation
-      tempObj.position.copy(pos);
-      tempObj.scale.setScalar(d.scale * (0.5 + 0.5 * currentMix)); // Smaller when scattered
-      tempObj.rotation.set(
-        t * d.speed, 
-        t * d.speed * 0.5, 
-        t * d.speed * 0.2
-      );
-      
-      tempObj.updateMatrix();
-      meshRef.current.setMatrixAt(i, tempObj.matrix);
-      
-      // Dynamic color (optional, requires custom instance color buffer, skipping for simplicity but using metalness)
-    });
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} castShadow receiveShadow>
-      <sphereGeometry args={[1, 16, 16]} />
-      <meshStandardMaterial 
-        color={PALETTE.GOLD_METALLIC}
-        roughness={0.15}
-        metalness={0.9}
-        emissive={PALETTE.GOLD_ROSE}
-        emissiveIntensity={0.2}
-      />
-    </instancedMesh>
-  );
-};
-
-// --- 组件: 顶部星星 ---
-const StarTopper = ({ active }: { active: boolean }) => {
-  const ref = useRef<THREE.Group>(null!);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const targetScale = active ? 1.5 : 0.01;
-    
-    // Scale animation
-    ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.02);
-    
-    // Rotation
-    ref.current.rotation.y = t * 0.5;
-    ref.current.rotation.z = Math.sin(t) * 0.1;
-  });
-
-  return (
-    <group ref={ref} position={[0, 7.5, 0]}>
-      <mesh castShadow>
-        <octahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial 
-          color="#FFFFFF" 
-          emissive="#FFFFFF" 
-          emissiveIntensity={2} 
-          toneMapped={false} 
-        />
-      </mesh>
-      {/* Light coming from the star */}
-      <pointLight distance={10} intensity={2} color={PALETTE.GOLD_METALLIC} />
-    </group>
-  );
-};
-
-// --- 场景主逻辑 ---
-const Scene = ({ active }: { active: boolean }) => {
-  const { size } = useThree();
-
-  return (
-    <>
-      <PerspectiveCamera makeDefault position={[0, 2, 22]} fov={45} />
-      <OrbitControls 
-        enablePan={false} 
-        minPolarAngle={Math.PI / 3} 
-        maxPolarAngle={Math.PI / 1.8}
-        minDistance={10}
-        maxDistance={30}
-        autoRotate={active}
-        autoRotateSpeed={0.5}
-      />
-
-      {/* Lighting: Cinematic & Moody */}
-      <ambientLight intensity={0.2} color={PALETTE.EMERALD_DARK} />
-      <spotLight 
-        position={[10, 20, 10]} 
-        angle={0.2} 
-        penumbra={1} 
-        intensity={200} 
-        color={PALETTE.GOLD_ROSE} 
-        castShadow 
-      />
-      <spotLight 
-        position={[-10, 5, 10]} 
-        angle={0.5} 
-        penumbra={1} 
-        intensity={100} 
-        color="#ffffff" 
-      />
-      
-      {/* HDRI Environment for reflections */}
-      <Environment preset="city" />
-
-      {/* Main Elements */}
-      <group position={[0, -2, 0]}>
-        <Foliage active={active} />
-        <Ornaments active={active} />
-        <StarTopper active={active} />
-      </group>
-
-      {/* Post Processing */}
-      <EffectComposer disableNormalPass>
-        <Bloom 
-          luminanceThreshold={0.8} 
-          mipmapBlur 
-          intensity={1.5} 
-          radius={0.4}
-        />
-        <Vignette eskil={false} offset={0.1} darkness={1.1} />
-      </EffectComposer>
-    </>
-  );
-};
-
-// --- 主 UI 组件 ---
-const UI = ({ active, setActive }: { active: boolean, setActive: (v: boolean) => void }) => {
-  return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 md:p-12 z-10 text-white select-none">
-      {/* Header */}
-      <div className="flex flex-col items-center md:items-start space-y-2 opacity-0 animate-fade-in" style={{animationDelay: '0.5s', animationFillMode: 'forwards'}}>
-        <h1 className="text-4xl md:text-6xl font-serif tracking-tighter text-[#E6BE8A] drop-shadow-[0_0_15px_rgba(230,190,138,0.5)]">
-          ARIX
-        </h1>
-        <div className="h-[1px] w-24 bg-gradient-to-r from-[#E6BE8A] to-transparent"></div>
-        <p className="text-xs md:text-sm font-light tracking-[0.3em] uppercase text-emerald-100/60">
-          Signature Interactive Holiday
-        </p>
-      </div>
-
-      {/* Controls */}
-      <div className="flex flex-col items-center space-y-6 pb-8">
-        <button
-          onClick={() => setActive(!active)}
-          className={`
-            pointer-events-auto group relative px-10 py-4 
-            border transition-all duration-700 ease-out
-            overflow-hidden
-            ${active 
-              ? 'border-[#E6BE8A] bg-[#E6BE8A]/10' 
-              : 'border-white/20 bg-transparent hover:border-white/50'
+    <!-- Import Map: 告訴瀏覽器從哪裡加載 React 和 Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "three": "https://esm.sh/three@0.160.0",
+                "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.15.12?external=react,react-dom,three",
+                "@react-three/drei": "https://esm.sh/@react-three/drei@9.96.1?external=react,react-dom,three,@react-three/fiber",
+                "@react-three/postprocessing": "https://esm.sh/@react-three/postprocessing@2.16.0?external=react,react-dom,three,@react-three/fiber",
+                "uuid": "https://esm.sh/uuid@9.0.1"
             }
-          `}
-        >
-          {/* Background Fill Animation */}
-          <div className={`
-            absolute inset-0 bg-[#E6BE8A] origin-left transition-transform duration-500
-            ${active ? 'scale-x-0' : 'scale-x-0 group-hover:scale-x-100'}
-            opacity-10
-          `}></div>
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
 
-          <div className="flex items-center space-x-3 relative z-10">
-            {active ? (
-              <Move3d className="w-4 h-4 text-[#E6BE8A]" />
-            ) : (
-              <Sparkles className="w-4 h-4 text-[#E6BE8A]" />
-            )}
-            <span className={`
-              font-sans font-bold tracking-[0.2em] text-sm
-              ${active ? 'text-[#E6BE8A]' : 'text-white'}
-            `}>
-              {active ? 'RELEASE' : 'ASSEMBLE'}
-            </span>
-          </div>
-        </button>
+    <!-- 主程式邏輯 -->
+    <script type="module">
+        import React, { useState, useRef, useMemo, useEffect } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import * as THREE from 'three';
+        import { Canvas, useFrame, useThree, extend } from '@react-three/fiber';
+        import { OrbitControls, Environment, PerspectiveCamera } from '@react-three/drei';
+        import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 
-        <p className="text-[10px] text-emerald-100/30 tracking-widest font-light">
-          {active ? 'STATUS: CONVERGED' : 'STATUS: AWAITING INPUT'}
-        </p>
-      </div>
-    </div>
-  );
-};
+        // --- 調色板 ---
+        const PALETTE = {
+            EMERALD_DARK: '#001a10',
+            EMERALD_LIGHT: '#004225',
+            GOLD_METALLIC: '#FFD700',
+            GOLD_ROSE: '#E6BE8A',
+        };
 
-export default function App() {
-  const [active, setActive] = useState(false);
+        // --- SVG Icons (內聯以避免依賴問題) ---
+        const IconSparkles = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className: "text-[#E6BE8A]" }, 
+            React.createElement('path', { d: "m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" }),
+            React.createElement('path', { d: "M5 3v4" }), React.createElement('path', { d: "M9 5H5" }), React.createElement('path', { d: "M19 18v4" }), React.createElement('path', { d: "M15 20h4" })
+        );
 
-  // CSS for simple fade in animation
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-      .animate-fade-in { animation: fade-in 1s ease-out; }
-    `;
-    document.head.appendChild(style);
-    return () => style.remove();
-  }, []);
+        const IconMove3d = () => React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", className: "text-[#E6BE8A]" },
+            React.createElement('path', { d: "M5 3v18" }), React.createElement('path', { d: "M19 3v18" }), React.createElement('path', { d: "M5 12h14" }), React.createElement('path', { d: "m5 9 3-3" }), React.createElement('path', { d: "m5 15 3 3" }), React.createElement('path', { d: "m19 9-3-3" }), React.createElement('path', { d: "m19 15-3 3" })
+        );
 
-  return (
-    <div className="w-full h-screen bg-[#000502] relative overflow-hidden">
-      <UI active={active} setActive={setActive} />
-      
-      <Canvas 
-        shadows 
-        dpr={[1, 2]} 
-        gl={{ 
-          antialias: false, // Tone mapping handled by postprocessing or default
-          toneMapping: THREE.ReinhardToneMapping,
-          toneMappingExposure: 1.5
-        }}
-      >
-        <Scene active={active} />
-      </Canvas>
-    </div>
-  );
-}
+        // --- 數學工具 ---
+        const getConePoint = (radius, height, yPos) => {
+            const r = (yPos / height) * radius;
+            const theta = Math.random() * Math.PI * 2;
+            const x = r * Math.cos(theta);
+            const z = r * Math.sin(theta);
+            return new THREE.Vector3(x, height - yPos - height / 2, z);
+        };
+
+        const getSpherePoint = (radius) => {
+            const u = Math.random();
+            const v = Math.random();
+            const theta = 2 * Math.PI * u;
+            const phi = Math.acos(2 * v - 1);
+            const r = radius * Math.cbrt(Math.random());
+            const sinPhi = Math.sin(phi);
+            const x = r * sinPhi * Math.cos(theta);
+            const y = r * sinPhi * Math.sin(theta);
+            const z = r * Math.cos(phi);
+            return new THREE.Vector3(x, y, z);
+        };
+
+        // --- Shader: 魔法針葉材質 ---
+        const FoliageShaderMaterial = {
+            uniforms: {
+                uTime: { value: 0 },
+                uMix: { value: 0 },
+                uColorBase: { value: new THREE.Color(PALETTE.EMERALD_LIGHT) },
+                uColorGlow: { value: new THREE.Color(PALETTE.GOLD_METALLIC) },
+                uPixelRatio: { value: window.devicePixelRatio }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uMix;
+                uniform float uPixelRatio;
+                
+                attribute vec3 aPositionTree;
+                attribute vec3 aPositionScatter;
+                attribute float aSize;
+                attribute float aRandom;
+                
+                varying float vAlpha;
+                varying float vRandom;
+
+                void main() {
+                    vRandom = aRandom;
+                    float t = uMix;
+                    // Ease out cubic
+                    float ease = t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0;
+
+                    vec3 pos = mix(aPositionScatter, aPositionTree, ease);
+
+                    // 呼吸效果
+                    float breath = sin(uTime * 2.0 + aRandom * 10.0) * 0.1;
+                    pos.y += breath * (1.0 - ease * 0.8); 
+                    
+                    // 旋轉過渡效果
+                    float rotAngle = (1.0 - ease) * aRandom * 5.0;
+                    float c = cos(rotAngle);
+                    float s = sin(rotAngle);
+                    mat2 rot = mat2(c, -s, s, c);
+                    pos.xz = rot * pos.xz;
+
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_Position = projectionMatrix * mvPosition;
+                    
+                    // 根據距離調整大小
+                    gl_PointSize = aSize * uPixelRatio * (200.0 / -mvPosition.z);
+                    vAlpha = 0.6 + 0.4 * ease;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uColorBase;
+                uniform vec3 uColorGlow;
+                
+                varying float vAlpha;
+                varying float vRandom;
+
+                void main() {
+                    vec2 center = gl_PointCoord - 0.5;
+                    float dist = length(center);
+                    if (dist > 0.5) discard;
+
+                    float glow = smoothstep(0.0, 0.5, dist);
+                    vec3 finalColor = mix(uColorBase, uColorGlow, glow * 0.8);
+                    finalColor += vec3(0.2) * step(0.9, vRandom);
+
+                    gl_FragColor = vec4(finalColor, vAlpha * (1.0 - dist * 1.5));
+                }
+            `
+        };
+
+        // --- 元件: 針葉粒子 ---
+        const Foliage = ({ active }) => {
+            const count = 3500; // 粒子數量
+            const meshRef = useRef();
+            const materialRef = useRef();
+
+            const [positionsTree, positionsScatter, randoms, sizes] = useMemo(() => {
+                const pTree = new Float32Array(count * 3);
+                const pScatter = new Float32Array(count * 3);
+                const rands = new Float32Array(count);
+                const sz = new Float32Array(count);
+
+                for (let i = 0; i < count; i++) {
+                    // 樹形位置
+                    const yNorm = Math.pow(Math.random(), 0.8);
+                    const height = 14;
+                    const yPos = yNorm * height;
+                    const radius = (yPos / height) * 5.5; 
+                    const treeVec = getConePoint(radius, height, yPos);
+                    
+                    pTree.set([treeVec.x, treeVec.y, treeVec.z], i * 3);
+
+                    // 散落位置
+                    const scatterVec = getSpherePoint(18);
+                    pScatter.set([scatterVec.x, scatterVec.y, scatterVec.z], i * 3);
+
+                    rands[i] = Math.random();
+                    sz[i] = Math.random() * 2.5 + 0.5;
+                }
+                return [pTree, pScatter, rands, sz];
+            }, []);
+
+            useFrame((state) => {
+                if (materialRef.current) {
+                    materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+                    const target = active ? 1 : 0;
+                    // 平滑過渡
+                    materialRef.current.uniforms.uMix.value = THREE.MathUtils.lerp(
+                        materialRef.current.uniforms.uMix.value,
+                        target,
+                        0.02
+                    );
+                }
+            });
+
+            return React.createElement('points', { ref: meshRef },
+                React.createElement('bufferGeometry', null,
+                    React.createElement('bufferAttribute', { attach: "attributes-position", count: count, array: positionsTree, itemSize: 3 }),
+                    React.createElement('bufferAttribute', { attach: "attributes-aPositionTree", count: count, array: positionsTree, itemSize: 3 }),
+                    React.createElement('bufferAttribute', { attach: "attributes-aPositionScatter", count: count, array: positionsScatter, itemSize: 3 }),
+                    React.createElement('bufferAttribute', { attach: "attributes-aRandom", count: count, array: randoms, itemSize: 1 }),
+                    React.createElement('bufferAttribute', { attach: "attributes-aSize", count: count, array: sizes, itemSize: 1 })
+                ),
+                React.createElement('shaderMaterial', {
+                    ref: materialRef,
+                    args: [FoliageShaderMaterial],
+                    transparent: true,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                })
+            );
+        };
+
+        // --- 元件: 裝飾物 (InstancedMesh) ---
+        const Ornaments = ({ active }) => {
+            const count = 200;
+            const meshRef = useRef();
+            const tempObj = useMemo(() => new THREE.Object3D(), []);
+            
+            const data = useMemo(() => {
+                return Array.from({ length: count }).map((_, i) => {
+                    const yNorm = Math.pow(Math.random(), 0.9);
+                    const height = 13;
+                    const yPos = yNorm * height;
+                    const radius = (yPos / height) * 5.0 + 0.5;
+                    
+                    const theta = yPos * 2.5 + (i % 5) * (Math.PI * 2 / 5);
+                    const xT = radius * Math.cos(theta);
+                    const zT = radius * Math.sin(theta);
+                    const treePos = new THREE.Vector3(xT, height - yPos - height/2, zT);
+                    const scatterPos = getSpherePoint(20);
+
+                    return { 
+                        treePos, 
+                        scatterPos, 
+                        scale: Math.random() * 0.4 + 0.2, 
+                        speed: Math.random() * 0.5 + 0.2 
+                    };
+                });
+            }, []);
+
+            useFrame((state) => {
+                const t = state.clock.elapsedTime;
+                const targetMix = active ? 1 : 0;
+                
+                // 在 userData 中存儲當前的混合值，以便每幀插值
+                if (meshRef.current.userData.mix === undefined) meshRef.current.userData.mix = 0;
+                meshRef.current.userData.mix = THREE.MathUtils.lerp(meshRef.current.userData.mix, targetMix, 0.015);
+                const currentMix = meshRef.current.userData.mix;
+
+                data.forEach((d, i) => {
+                    const pos = new THREE.Vector3().lerpVectors(d.scatterPos, d.treePos, currentMix);
+                    
+                    // 搖擺動畫
+                    const wobble = active ? 0.1 : 2.0;
+                    pos.y += Math.sin(t * d.speed + i) * wobble * (1 - currentMix * 0.8);
+
+                    tempObj.position.copy(pos);
+                    tempObj.scale.setScalar(d.scale * (0.5 + 0.5 * currentMix));
+                    tempObj.rotation.set(t * d.speed, t * d.speed * 0.5, t * d.speed * 0.2);
+                    
+                    tempObj.updateMatrix();
+                    meshRef.current.setMatrixAt(i, tempObj.matrix);
+                });
+                meshRef.current.instanceMatrix.needsUpdate = true;
+            });
+
+            return React.createElement('instancedMesh', { ref: meshRef, args: [null, null, count], castShadow: true, receiveShadow: true },
+                React.createElement('sphereGeometry', { args: [1, 16, 16] }),
+                React.createElement('meshStandardMaterial', {
+                    color: PALETTE.GOLD_METALLIC,
+                    roughness: 0.15,
+                    metalness: 0.9,
+                    emissive: PALETTE.GOLD_ROSE,
+                    emissiveIntensity: 0.2
+                })
+            );
+        };
+
+        // --- 元件: 頂部星星 ---
+        const StarTopper = ({ active }) => {
+            const ref = useRef();
+
+            useFrame((state) => {
+                const t = state.clock.elapsedTime;
+                const targetScale = active ? 1.5 : 0.01;
+                ref.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.02);
+                ref.current.rotation.y = t * 0.5;
+                ref.current.rotation.z = Math.sin(t) * 0.1;
+            });
+
+            return React.createElement('group', { ref: ref, position: [0, 7.5, 0] },
+                React.createElement('mesh', { castShadow: true },
+                    React.createElement('octahedronGeometry', { args: [1, 0] }),
+                    React.createElement('meshStandardMaterial', {
+                        color: "#FFFFFF",
+                        emissive: "#FFFFFF",
+                        emissiveIntensity: 2,
+                        toneMapped: false
+                    })
+                ),
+                React.createElement('pointLight', { distance: 10, intensity: 2, color: PALETTE.GOLD_METALLIC })
+            );
+        };
+
+        // --- 場景 ---
+        const Scene = ({ active }) => {
+            return React.createElement(React.Fragment, null,
+                React.createElement(PerspectiveCamera, { makeDefault: true, position: [0, 2, 22], fov: 45 }),
+                React.createElement(OrbitControls, {
+                    enablePan: false,
+                    minPolarAngle: Math.PI / 3,
+                    maxPolarAngle: Math.PI / 1.8,
+                    minDistance: 10,
+                    maxDistance: 30,
+                    autoRotate: active,
+                    autoRotateSpeed: 0.5
+                }),
+                
+                // 燈光
+                React.createElement('ambientLight', { intensity: 0.2, color: PALETTE.EMERALD_DARK }),
+                React.createElement('spotLight', { position: [10, 20, 10], angle: 0.2, penumbra: 1, intensity: 200, color: PALETTE.GOLD_ROSE, castShadow: true }),
+                React.createElement('spotLight', { position: [-10, 5, 10], angle: 0.5, penumbra: 1, intensity: 100, color: "#ffffff" }),
+                
+                React.createElement(Environment, { preset: "city" }),
+
+                // 樹與裝飾
+                React.createElement('group', { position: [0, -2, 0] },
+                    React.createElement(Foliage, { active: active }),
+                    React.createElement(Ornaments, { active: active }),
+                    React.createElement(StarTopper, { active: active })
+                ),
+
+                // 後期特效
+                React.createElement(EffectComposer, { disableNormalPass: true },
+                    React.createElement(Bloom, { luminanceThreshold: 0.8, mipmapBlur: true, intensity: 1.5, radius: 0.4 }),
+                    React.createElement(Vignette, { eskil: false, offset: 0.1, darkness: 1.1 })
+                )
+            );
+        };
+
+        // --- UI 界面 ---
+        const UI = ({ active, setActive }) => {
+            return React.createElement('div', { className: "absolute inset-0 pointer-events-none flex flex-col justify-between p-8 md:p-12 z-10 text-white select-none" },
+                // 標題
+                React.createElement('div', { className: "flex flex-col items-center md:items-start space-y-2 opacity-0 animate-fade-in", style: { animationDelay: '0.5s' } },
+                    React.createElement('h1', { className: "text-4xl md:text-6xl font-serif tracking-tighter text-[#E6BE8A] drop-shadow-[0_0_15px_rgba(230,190,138,0.5)]" }, "ARIX"),
+                    React.createElement('div', { className: "h-[1px] w-24 bg-gradient-to-r from-[#E6BE8A] to-transparent" }),
+                    React.createElement('p', { className: "text-xs md:text-sm font-light tracking-[0.3em] uppercase text-emerald-100/60" }, "Signature Interactive Holiday")
+                ),
+
+                // 按鈕
+                React.createElement('div', { className: "flex flex-col items-center space-y-6 pb-8" },
+                    React.createElement('button', {
+                        onClick: () => setActive(!active),
+                        className: `
+                            pointer-events-auto group relative px-10 py-4 
+                            border transition-all duration-700 ease-out
+                            overflow-hidden
+                            ${active ? 'border-[#E6BE8A] bg-[#E6BE8A]/10' : 'border-white/20 bg-transparent hover:border-white/50'}
+                        `
+                    },
+                        React.createElement('div', {
+                            className: `absolute inset-0 bg-[#E6BE8A] origin-left transition-transform duration-500 opacity-10 ${active ? 'scale-x-0' : 'scale-x-0 group-hover:scale-x-100'}`
+                        }),
+                        React.createElement('div', { className: "flex items-center space-x-3 relative z-10" },
+                            active ? React.createElement(IconMove3d) : React.createElement(IconSparkles),
+                            React.createElement('span', { className: `font-sans font-bold tracking-[0.2em] text-sm ${active ? 'text-[#E6BE8A]' : 'text-white'}` },
+                                active ? 'RELEASE' : 'ASSEMBLE'
+                            )
+                        )
+                    ),
+                    React.createElement('p', { className: "text-[10px] text-emerald-100/30 tracking-widest font-light" },
+                        active ? 'STATUS: CONVERGED' : 'STATUS: AWAITING INPUT'
+                    )
+                )
+            );
+        };
+
+        // --- App 入口 ---
+        const App = () => {
+            const [active, setActive] = useState(false);
+
+            return React.createElement('div', { className: "w-full h-screen bg-[#000502] relative overflow-hidden" },
+                React.createElement(UI, { active: active, setActive: setActive }),
+                React.createElement(Canvas, {
+                    shadows: true,
+                    dpr: [1, 2],
+                    gl: {
+                        antialias: false,
+                        toneMapping: THREE.ReinhardToneMapping,
+                        toneMappingExposure: 1.5
+                    }
+                },
+                    React.createElement(Scene, { active: active })
+                )
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
